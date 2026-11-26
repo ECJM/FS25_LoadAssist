@@ -31,6 +31,7 @@
     </specializations>
 
     <extraSourceFiles>
+        <sourceFile filename="scripts/LoadAssistScreen.lua" />
         <sourceFile filename="scripts/LoadAssistMenu.lua" />
     </extraSourceFiles>
 

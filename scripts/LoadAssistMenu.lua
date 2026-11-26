@@ -6,7 +6,8 @@
 -- het doel zet het terug op de standaardwaarde. Onderin: geluid bij het halen van een doel aan/uit en een testknop.
 --
 -- Het menu tekent zichzelf met overlays (textures/*.dds) en dezelfde HandelGothic-letters als het scherm in de cabine
--- (fonts/handelgothic_overlay.dds). Achter het paneel wordt het beeld wazig, zoals bij de dialogen van het spel.
+-- (LoadAssistScreen.getFont). Achter het paneel wordt het beeld wazig, zoals bij de dialogen van het spel. Het
+-- lichtgevende scherm in de cabine tekent het menu eerst, zodat het menu er altijd boven ligt.
 -- Zolang het menu open is, heeft het een eigen input-context: de machine reageert dan niet op toetsen en de muis is vrij.
 -- =====================================================================================================================
 
@@ -32,13 +33,9 @@ Menu.TEXTURES = {
     sheen   = { file = "textures/glass_sheen.dds",    size = 128, corner = 48 },
     shadow  = { file = "textures/glass_shadow.dds",   size = 256, corner = 88 }, -- vorm met straal 48, 40 px vervaging
     icons   = { file = "textures/menu_icons.dds" },
-    font    = { file = "fonts/handelgothic_overlay.dds" },
 }
 Menu.ICONS = { close = 0, plus = 1, minus = 2, reset = 3, check = 4, bell = 5, truck = 6, pile = 7 }
 Menu.ICON_COUNT = 8
-
--- Overlay-letters (zelfde indeling als fonts/overlayFonts.xml van DigAssist); maten per teken uit fonts/customFonts.xml
-Menu.FONT = { name = "HANDELGOTHIC", columns = 37, rows = 2, thicknesses = { 1.0, 1.5, 2.0, 2.5 }, capBottom = 0.016, capTop = 0.797 }
 
 -- Maten in eenheden: 1 eenheid = 1 pixel bij 1080p en UI-schaal 100%
 Menu.PANEL_W, Menu.PANEL_H, Menu.PAD, Menu.RADIUS = 880, 370, 26, 30
@@ -51,17 +48,6 @@ Menu.assets = nil
 
 local function round(v)
     return math.floor(v + 0.5)
-end
-
-local function utf8Chars(str)
-    local list, i, n = {}, 1, string.len(str)
-    while i <= n do
-        local c = string.byte(str, i)
-        local len = c >= 0xF0 and 4 or c >= 0xE0 and 3 or c >= 0xC0 and 2 or 1
-        list[#list + 1] = string.sub(str, i, i + len - 1)
-        i = i + len
-    end
-    return list
 end
 
 -- =====================================================================================================================
@@ -188,12 +174,12 @@ function Menu.loadAssets()
         local path = Menu.MOD_DIR .. tex.file
         local id = fileExists(path) and createImageOverlay(path) or 0
         assets[key] = id or 0
-        if assets[key] == 0 and key ~= "font" then
+        if assets[key] == 0 then
             assets.ok = false
         end
     end
     Menu.assets = assets
-    Menu.font = assets.font ~= 0 and Menu.loadFontMetrics() or nil
+    Menu.font = LoadAssistScreen.getFont() -- nil: dan de gewone letters van het spel
     return assets.ok
 end
 
@@ -203,85 +189,20 @@ function Menu.deleteAssets()
             delete(id)
         end
     end
-    Menu.assets, Menu.font = nil, nil
-end
-
--- Maten per teken van HANDELGOTHIC uit fonts/customFonts.xml, zoals FontMaterial ze inleest
-function Menu.loadFontMetrics()
-    local path = Menu.MOD_DIR .. "fonts/customFonts.xml"
-    local xmlId = fileExists(path) and loadXMLFile("loadAssistMenuFont", path) or 0
-    if xmlId == nil or xmlId == 0 then
-        return nil
-    end
-    local font, i = nil, 0
-    while font == nil do
-        local key = string.format("fonts.font(%d)", i)
-        if not hasXMLProperty(xmlId, key) then
-            break
-        end
-        if string.upper(getXMLString(xmlId, key .. "#name") or "") == Menu.FONT.name then
-            font = { chars = {},
-                     spacingX = getXMLFloat(xmlId, key .. ".spacing#x") or 0,
-                     spacingY = getXMLFloat(xmlId, key .. ".spacing#y") or 0,
-                     charToChar = getXMLFloat(xmlId, key .. ".spacing#charToChar") or 0.05 }
-            local j = 0
-            while true do
-                local ck = string.format("%s.character(%d)", key, j)
-                if not hasXMLProperty(xmlId, ck) then
-                    break
-                end
-                local value = getXMLString(xmlId, ck .. "#value")
-                if value ~= nil then
-                    local c = { uvIndex  = getXMLInt(xmlId, ck .. "#uvIndex") or 0,
-                                spacingX = math.max(getXMLFloat(xmlId, ck .. "#spacingX") or font.spacingX, 0.0001),
-                                spacingY = math.max(getXMLFloat(xmlId, ck .. "#spacingY") or font.spacingY, 0.0001),
-                                offsetX  = getXMLFloat(xmlId, ck .. "#offsetX") or 0,
-                                offsetY  = getXMLFloat(xmlId, ck .. "#offsetY") or 0 }
-                    c.realSpacingX = math.max(getXMLFloat(xmlId, ck .. "#realSpacingX") or c.spacingX, 0.0001)
-                    font.chars[value] = c
-                    for _, variant in ipairs({ string.lower(value), string.upper(value) }) do
-                        if font.chars[variant] == nil then
-                            font.chars[variant] = c
-                        end
-                    end
-                end
-                j = j + 1
-            end
-        end
-        i = i + 1
-    end
-    delete(xmlId)
-    return font
+    Menu.assets, Menu.font = nil, nil -- de letters zijn van LoadAssistScreen en worden daar opgeruimd
 end
 
 -- Tekens van links naar rechts, net zo groot en op dezelfde plek als CharacterLine ze zet (fontSize = 1)
 function Menu.layoutText(str)
-    local font = Menu.font
     local quads, x = {}, 0
-    for _, ch in ipairs(utf8Chars(str)) do
-        local c = font.chars[ch]
-        local sx, sy, rsx, ox, oy = font.spacingX, font.spacingY, font.spacingX, 0, 0
+    for _, ch in ipairs(LoadAssistScreen.utf8Chars(str)) do
+        local c, w, advance, ox, oy = LoadAssistScreen.glyph(Menu.font, ch)
         if c ~= nil then
-            sx, sy, rsx, ox, oy = c.spacingX, c.spacingY, c.realSpacingX, c.offsetX, c.offsetY
+            quads[#quads + 1] = { c = c, x = x + advance * (0.5 + ox) - w * 0.5, y = oy, w = w }
         end
-        local w = (1 - 2 * sx) / (1 - 2 * sy)
-        local cw = w + font.charToChar * (sx / rsx)
-        if c ~= nil then
-            quads[#quads + 1] = { c = c, x = x + cw * (0.5 + ox) - w * 0.5, y = oy, w = w }
-        end
-        x = x + cw
+        x = x + advance
     end
     return quads, x
-end
-
-local function thicknessBlock(thickness)
-    local block, best = 0, math.huge
-    for k, t in ipairs(Menu.FONT.thicknesses) do
-        if math.abs(t - thickness) < best then
-            block, best = k - 1, math.abs(t - thickness)
-        end
-    end
-    return block
 end
 
 -- Tekst: (x, y) in pixels met y = onderkant van de hoofdletters, cap = hoogte van de hoofdletters in pixels,
@@ -299,17 +220,14 @@ function Menu.text(str, x, y, cap, color, alpha, align, thickness)
         setTextColor(1, 1, 1, 1)
         return width
     end
-    local F, ovl = Menu.FONT, Menu.assets.font
-    local size = cap / (F.capTop - F.capBottom)
-    local base = y - F.capBottom * size
-    local block, numRows, pitch = thicknessBlock(thickness or 1.5), F.rows * #F.thicknesses, F.columns - 0.01
+    local font = Menu.font
+    local ovl = font.overlay
+    local size = cap / (font.capTop - font.capBottom)
+    local base = y - font.capBottom * size
+    local block = LoadAssistScreen.thicknessBlock(font, thickness or 1.5)
     setOverlayColor(ovl, color[1], color[2], color[3], alpha * Menu.alpha)
     for _, q in ipairs((Menu.layoutText(str))) do
-        local c = q.c
-        local col = math.floor(math.fmod(c.uvIndex, pitch)) -- zoals de shader: floor(fmod(index, 36.99)) / 36.99
-        local row = block * F.rows + math.floor(c.uvIndex / F.columns)
-        local u0, u1 = c.spacingX / F.columns + col / pitch, (1 - c.spacingX) / F.columns + col / pitch
-        local v0, v1 = 1 - (row + 1 - c.spacingY) / numRows, 1 - (row + c.spacingY) / numRows
+        local u0, v0, u1, v1 = LoadAssistScreen.glyphUV(font, q.c, block)
         setOverlayUVs(ovl, u0, v0, u0, v1, u1, v0, u1, v1)
         renderOverlay(ovl, (left + q.x * size) / W, (base + q.y * size) / H, q.w * size / W, size / H)
     end
@@ -324,7 +242,7 @@ function Menu.textWidth(str, cap)
         return width
     end
     local _, width = Menu.layoutText(str)
-    return width * cap / (Menu.FONT.capTop - Menu.FONT.capBottom)
+    return width * cap / (Menu.font.capTop - Menu.font.capBottom)
 end
 
 -- =====================================================================================================================
@@ -457,6 +375,7 @@ function Menu:draw()
     if st == nil or Menu.assets == nil or (g_gui ~= nil and g_gui:getIsGuiVisible()) then
         return
     end
+    LoadAssistScreen.draw(st.vehicle) -- het scherm in de cabine onder het menu
     local spec = st.vehicle.spec_loadAssist
     local s = Menu.getScale()
     local e = 1 - (1 - math.min(st.time / Menu.OPEN_TIME, 1)) ^ 3
@@ -519,9 +438,10 @@ function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
     label(string.upper(m.title), cx + 54, cy + 38.5, 13, Menu.WHITE, 0.95 * dim, "left", 2.0)
     Menu.switch("toggle", i, m.enabled, cbox(cw - 20 - 50, 18, 50, 28))
 
-    -- Geladen gewicht en voortgang
-    local pct = math.min(m.loaded / m.target, 1)
-    local valueWidth = label(string.format("%.1f", m.loaded), cx + 20, cy + 98, 32, Menu.WHITE, dim, "left", 2.0)
+    -- Geladen gewicht (ook wat nu uit de bak gaat) en voortgang
+    local loaded = LoadAssist.getShownLoaded(spec, m)
+    local pct = math.min(loaded / m.target, 1)
+    local valueWidth = label(string.format("%.1f", loaded), cx + 20, cy + 98, 32, Menu.WHITE, dim, "left", 2.0)
     label("t", cx + 20 + valueWidth / s + 7, cy + 98, 15, Menu.WHITE, 0.6 * dim, "left", 1.5)
     if not m.enabled then
         label("UIT", cx + cw - 20, cy + 98, 16, Menu.WHITE, 0.45, "right", 2.0)
@@ -766,6 +686,7 @@ function Menu:deleteMap()
     end
     Menu.revertPending = false
     Menu.deleteAssets()
+    LoadAssistScreen.deleteAssets()
     if LoadAssist ~= nil and LoadAssist.onMapUnloaded ~= nil then
         LoadAssist.onMapUnloaded()
     end

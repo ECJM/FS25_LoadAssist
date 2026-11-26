@@ -2,9 +2,10 @@
 -- LoadAssist (FS25): weegsysteem voor wielladers en graafmachines.
 --
 -- Op het scherm in de cabine staan het gewicht in de bak, de bakhoek, de helling (voor/achter en links/rechts) en twee
--- tellers met een voortgangsbalk: Vrachtwagen en Opdracht. Elke keer dat de bak leeg gaat, telt het hoogste gewicht van
--- die lading mee bij de tellers die aan staan. Haalt een teller zijn doelgewicht, dan klinkt er een geluid.
--- Met Num / opent een menu (scripts/LoadAssistMenu.lua) om de doelgewichten in te stellen en de tellers te resetten.
+-- tellers met een voortgangsbalk: Vrachtwagen en Opdracht. Wat er uit de bak gaat, telt meteen mee bij de tellers die
+-- aan staan, dus de balken lopen mee terwijl je lost. Haalt een teller zijn doelgewicht, dan klinkt er een geluid.
+-- Vanuit de cabine wordt het scherm als lichtgevende laag getekend (scripts/LoadAssistScreen.lua), met balken van losse
+-- pixels. Met Num / opent een menu (scripts/LoadAssistMenu.lua) om de doelgewichten in te stellen en te resetten.
 --
 -- Alle XML-attributen staan in docs/LoadAssist-documentatie.html.
 -- =====================================================================================================================
@@ -20,7 +21,14 @@ LoadAssist.TARGET_MAX    = 9999  -- t
 LoadAssist.KEY_STEP      = 2.5   -- t per toetsdruk (Alt+= / Alt+-)
 LoadAssist.EMPTY_TONS    = 0.02  -- onder dit gewicht is de bak leeg
 LoadAssist.MIN_LOAD_TONS = 0.05  -- lichtere ladingen tellen niet mee
+LoadAssist.REFILL_TONS   = 0.05  -- zoveel weer bijgeschept na een gedeeltelijke lossing: wat eruit was, telt
 LoadAssist.NUM_CHARS     = 10    -- tekens per 3D-tekstregel
+LoadAssist.MIN_THICKNESS = 1.0   -- dunner is HANDELGOTHIC onzichtbaar
+LoadAssist.TEXT_EMISSIVE = 0.5   -- oplichten van de 3D-letters
+LoadAssist.BAR_EASE_TIME = 140   -- ms, balken lopen zacht naar hun waarde
+LoadAssist.BAR_FLOW_TIME = 700   -- ms, zo lang lichten de pixels aan de kop nog na
+LoadAssist.FADE_TIME     = 400   -- ms, scherm licht op bij het opstarten
+LoadAssist.SCREEN_ASPECT = 1568 / 2750 -- breedte / hoogte van de schermafbeelding (L90)
 LoadAssist.DEFAULT_MASS_PER_LITER = 0.0015
 LoadAssist.IGNORED_FILLTYPES = { "DIESEL", "DEF", "AIR", "ELECTRICCHARGE", "METHANE" } -- eigen tanks van de machine
 LoadAssist.DEFAULT_SOUND = "$data/sounds/ui/uiSuccess.ogg"
@@ -29,9 +37,11 @@ LoadAssist.GREY  = { 0.564, 0.564, 0.564, 1 }
 LoadAssist.WHITE = { 1, 1, 1, 1 }
 LoadAssist.GREEN = { 0.184, 0.533, 0.238, 1 }
 
--- De twee tellers. defaultTarget = doelgewicht als de xml niets zegt, menuStep = stap van - en + in het menu (t)
+-- De twee tellers. defaultTarget = doelgewicht als de xml niets zegt, menuStep = stap van - en + in het menu (t),
+-- barArea = binnenkant van de balk op de schermafbeelding (links boven rechts onder, linksboven = 0 0); zonder barArea
+-- ligt de balk als die van Vrachtwagen, verschoven zoals de teksten van de teller
 LoadAssist.MODES = {
-    { name = "truck", title = "Vrachtwagen", defaultTarget = 25,  menuStep = 0.5 },
+    { name = "truck", title = "Vrachtwagen", defaultTarget = 25,  menuStep = 0.5, barArea = "0.1524 0.5840 0.8310 0.6065" },
     { name = "job",   title = "Opdracht",    defaultTarget = 150, menuStep = 5 },
 }
 
@@ -60,6 +70,19 @@ local function parseRotation(str, fallback)
     return fallback ~= nil and parseRotation(fallback) or { 0, 0, 0 }
 end
 
+-- "1 2 3" -> { 1, 2, 3 } met precies count getallen, anders nil
+local function parseNumbers(str, count)
+    local list = {}
+    for s in string.gmatch(str or "", "%S+") do
+        local n = tonumber(s)
+        if n == nil then
+            return nil
+        end
+        list[#list + 1] = n
+    end
+    return #list == count and list or nil
+end
+
 local function slopeText(value)
     return string.format("%s%.1f%%", value > 0.05 and "+" or "", value)
 end
@@ -81,7 +104,7 @@ for _, def in ipairs(LoadAssist.MODES) do
     table.insert(LoadAssist.TEXTS, { key = name .. "Loaded", desc = "geladen " .. def.title, size = 0.85,
         get = function(spec)
             local m = spec.modes[name]
-            return m.enabled and string.format("%.1ft", m.loaded) or "", LoadAssist.GREEN
+            return m.enabled and string.format("%.1ft", LoadAssist.getShownLoaded(spec, m)) or "", LoadAssist.GREEN
         end })
     table.insert(LoadAssist.TEXTS, { key = name .. "Target", desc = "doelgewicht " .. def.title, size = 0.85,
         get = function(spec)
@@ -113,9 +136,25 @@ LoadAssist.XML_PATHS = {
     { ".screenParts#maxRot",           "STRING",     "Draaiing van de schermbak bij maxAngle", LoadAssist.MINI_ROT.max },
     { ".texts#fontName",               "STRING",     "Lettertype, bijvoorbeeld HANDELGOTHIC" },
     { ".texts#fontSize",               "FLOAT",      "Tekstgrootte", 0.012 },
-    { ".texts#fontThickness",          "FLOAT",      "Letterdikte", 1 },
+    { ".texts#fontThickness",          "FLOAT",      "Letterdikte (HANDELGOTHIC: minstens 1)", 1 },
+    { ".texts#emissiveScale",          "FLOAT",      "Hoe sterk de 3D-letters oplichten (0 = niet)", LoadAssist.TEXT_EMISSIVE },
     { ".sound#file",                   "STRING",     "Geluid als een doelgewicht gehaald is", LoadAssist.DEFAULT_SOUND },
     { ".sound#volume",                 "FLOAT",      "Volume van dat geluid", 1 },
+    { ".screen#overlay",               "BOOL",       "Scherm vanuit de cabine als lichtgevende laag tekenen", true },
+    { ".screen#aspect",                "FLOAT",      "Breedte / hoogte van de schermafbeelding", LoadAssist.SCREEN_ASPECT },
+    { ".screen#size",                  "STRING",     "Precieze maat van het scherm in meter: breedte hoogte" },
+    { ".screen#offset",                "STRING",     "Scherm verschuiven in meter: rechts omhoog" },
+    { ".screen#roll",                  "FLOAT",      "Scherm draaien in graden (+ = tegen de klok in)", 0 },
+    { ".screen#alignNode",             "NODE_INDEX", "Node op het scherm met X naar rechts, Y omhoog en Z naar de bestuurder" },
+    { ".screen#brightness",            "FLOAT",      "Helderheid van het scherm", 1 },
+    { ".screen#mainImage",             "STRING",     "Afbeelding van het hoofdscherm (standaard die van mainScreenNode)" },
+    { ".screen#bootImage",             "STRING",     "Afbeelding van het opstartscherm (standaard die van bootScreenNode)" },
+    { ".screen#miniBucketImage",       "STRING",     "Afbeelding van de bak (standaard die van miniBucketNode)" },
+    { ".screen#miniBucketWindow",      "FLOAT",      "Stuk van de bak-afbeelding rond de node, als deel van de schermbreedte", 0.2 },
+    { ".screen#debug",                 "BOOL",       "Rand en tekstpunten tonen, scherm half doorzichtig", false },
+    { ".bars#pixelRows",               "INT",        "Rijen pixels in een balk", 2 },
+    { ".bars#pixelColumns",            "INT",        "Kolommen pixels in een balk (0 = vierkante pixels)", 0 },
+    { ".bars#barFrame",                "BOOL",       "Rand om de balken tekenen", true },
 }
 
 function LoadAssist.prerequisitesPresent(specializations)
@@ -136,6 +175,8 @@ function LoadAssist.initSpecialization()
         schema:register(XMLValueType.NODE_INDEX, base .. ".bars#" .. m.name .. "BarNode", "Voortgangsbalk " .. m.title)
         schema:register(XMLValueType.NODE_INDEX, base .. ".bars#" .. m.name .. "GroupNode", "Groep achter de balk " .. m.title)
         schema:register(XMLValueType.FLOAT, base .. ".bars#" .. m.name .. "Target", "Doelgewicht " .. m.title .. " in ton", m.defaultTarget)
+        schema:register(XMLValueType.STRING, base .. ".bars#" .. m.name .. "BarArea",
+            "Binnenkant van de balk " .. m.title .. " op de schermafbeelding: links boven rechts onder", m.barArea)
     end
     schema:setXMLSpecializationType()
 
@@ -204,8 +245,10 @@ function LoadAssist:onLoad(savegame)
         local m = {
             index = i, name = def.name, title = def.title, menuStep = def.menuStep,
             barNode = node(".bars#" .. def.name .. "BarNode"), groupNode = node(".bars#" .. def.name .. "GroupNode"),
+            barArea = parseNumbers(value(".bars#" .. def.name .. "BarArea", def.barArea), 4),
             target = math.clamp(value(".bars#" .. def.name .. "Target", def.defaultTarget), LoadAssist.TARGET_MIN, LoadAssist.TARGET_MAX),
             loaded = 0, enabled = true, targetReached = false,
+            barValue = 0, barFlow = 0, -- getekende vulling van de balk (0..1) en het oplichten aan de kop
         }
         m.defaultTarget = m.target
         m.barScale = exists(m.barNode) and { getScale(m.barNode) } or { 1, 1, 1 }
@@ -218,19 +261,36 @@ function LoadAssist:onLoad(savegame)
     for _, def in ipairs(LoadAssist.TEXTS) do
         local textNode = node(".texts#" .. def.key .. "Node")
         if exists(textNode) then
-            table.insert(spec.texts, { node = textNode, get = def.get, size = def.fixed and def.size or fontSize * def.size })
+            table.insert(spec.texts, { key = def.key, node = textNode, get = def.get, size = def.fixed and def.size or fontSize * def.size })
         end
     end
     spec.fontName      = value(".texts#fontName")
     spec.fontThickness = value(".texts#fontThickness", 1)
+    spec.textEmissive  = value(".texts#emissiveScale", LoadAssist.TEXT_EMISSIVE)
     spec.useCustomFont = false
+
+    -- Het scherm als lichtgevende laag (scripts/LoadAssistScreen.lua)
+    spec.screen = {
+        enabled = value(".screen#overlay", true), debug = value(".screen#debug", false),
+        aspect = value(".screen#aspect", LoadAssist.SCREEN_ASPECT), size = parseNumbers(value(".screen#size"), 2),
+        offset = parseNumbers(value(".screen#offset"), 2), roll = value(".screen#roll", 0), alignNode = node(".screen#alignNode"),
+        brightness = value(".screen#brightness", 1), miniBucketWindow = value(".screen#miniBucketWindow", 0.2),
+        bars = { rows = value(".bars#pixelRows", 2), columns = value(".bars#pixelColumns", 0), frame = value(".bars#barFrame", true) },
+        images = {}, nodeImages = {},
+    }
+    for key, path in pairs({ main = ".screen#mainImage", boot = ".screen#bootImage", miniBucket = ".screen#miniBucketImage" }) do
+        local file = value(path)
+        if file ~= nil and file ~= "" then
+            spec.screen.images[key] = Utils.getFilename(file, self.baseDirectory)
+        end
+    end
 
     -- Geluid als een doel gehaald is
     spec.soundFile    = Utils.getFilename(value(".sound#file", LoadAssist.DEFAULT_SOUND), self.baseDirectory)
     spec.soundVolume  = value(".sound#volume", 1)
     spec.soundEnabled = true
 
-    spec.currentBucketTons, spec.peakBucketTons = 0, 0
+    spec.currentBucketTons, spec.peakBucketTons, spec.lowBucketTons, spec.inFlightTons = 0, 0, 0, 0
     spec.bucketAngleDeg, spec.slopeFrontBack, spec.slopeLeftRight = 0, 0, 0
 
     if savegame ~= nil and not savegame.resetVehicles then
@@ -349,6 +409,12 @@ function LoadAssist.setupFontLines(self, dt)
     if font == nil then
         return
     end
+    -- HANDELGOTHIC is dun getekend: onder dikte 1 blijft er van de letters niets over (zo was de tekst onzichtbaar)
+    if string.find(string.upper(font.name or ""), "HANDELGOTHIC", 1, true) and spec.fontThickness < LoadAssist.MIN_THICKNESS then
+        Logging.xmlWarning(self.xmlFile, "LoadAssist: fontThickness %.2f is te dun voor HANDELGOTHIC, %.1f gebruikt (2.0 staat het best).",
+            spec.fontThickness, LoadAssist.MIN_THICKNESS)
+        spec.fontThickness = LoadAssist.MIN_THICKNESS
+    end
     for _, t in ipairs(spec.texts) do
         t.line = CharacterLine.new(t.node, font, LoadAssist.NUM_CHARS)
         t.line:setSizeAndScale(t.size, 1, 1)
@@ -378,7 +444,7 @@ function LoadAssist.updateTexts(self)
         local text, color = t.get(spec)
         if color ~= t.shownColor then
             t.shownColor = color
-            t.line:setColor(color, nil, 0)
+            t.line:setColor(color, nil, spec.textEmissive)
         end
         if text ~= t.shownText then
             t.shownText = text
@@ -393,7 +459,12 @@ end
 function LoadAssist.setScreenState(self, state)
     local spec = self.spec_loadAssist
     local main = state == "main"
-    spec.screenState, spec.bootTimer = state, LoadAssist.BOOT_TIME
+    spec.screenState, spec.bootTimer, spec.screenTime = state, LoadAssist.BOOT_TIME, 0
+    if not main then
+        for _, m in ipairs(spec.modeList) do
+            m.barValue, m.barFlow = 0, 0 -- na het opstarten lopen de balken vanaf nul vol
+        end
+    end
     setVis(spec.offScreenNode, state == "off")
     setVis(spec.bootScreenNode, state == "boot")
     setVis(spec.mainScreenNode, main)
@@ -412,7 +483,7 @@ function LoadAssist.updateProgressBars(self)
     for _, m in ipairs(spec.modeList) do
         setVis(m.groupNode, main and m.enabled)
         if exists(m.barNode) then
-            local pct = (main and m.enabled) and math.clamp(m.loaded / m.target, 0, 1) or 0
+            local pct = (main and m.enabled) and m.barValue or 0
             setVisibility(m.barNode, pct > 0.001)
             if pct > 0.001 then
                 setScale(m.barNode, math.max(m.barScale[1] * pct, 0.0001), m.barScale[2], m.barScale[3])
@@ -446,6 +517,7 @@ function LoadAssist:onUpdate(dt)
     if spec.fontPending then
         LoadAssist.setupFontLines(self, dt)
     end
+    spec.screenTime = spec.screenTime + dt
 
     local motorOn = self:getIsMotorStarted()
     if spec.screenState == "off" then
@@ -468,8 +540,28 @@ function LoadAssist:onUpdate(dt)
     LoadAssist.updateSlope(self)
     LoadAssist.updateBucketAngle(self)
     LoadAssist.updateBucketWeightAndTotals(self)
+    LoadAssist.updateBarValues(self, dt)
     LoadAssist.updateProgressBars(self)
     LoadAssist.updateTexts(self)
+end
+
+-- De balken lopen zacht naar hun waarde (ook bij een reset of na het opstarten). barFlow = 1 zolang een balk groeit en
+-- zakt daarna langzaam naar 0; het scherm laat dan de pixels aan de kop oplichten.
+function LoadAssist.updateBarValues(self, dt)
+    local spec = self.spec_loadAssist
+    local k = 1 - math.exp(-dt / LoadAssist.BAR_EASE_TIME)
+    for _, m in ipairs(spec.modeList) do
+        local goal = m.enabled and math.clamp(LoadAssist.getShownLoaded(spec, m) / m.target, 0, 1) or 0
+        if goal > m.barValue + 0.0005 then
+            m.barFlow = 1
+        else
+            m.barFlow = math.max(m.barFlow - dt / LoadAssist.BAR_FLOW_TIME, 0)
+        end
+        m.barValue = m.barValue + (goal - m.barValue) * k
+        if math.abs(goal - m.barValue) < 0.0002 then
+            m.barValue = goal
+        end
+    end
 end
 
 -- =====================================================================================================================
@@ -584,22 +676,53 @@ function LoadAssist.getCurrentBucketMassTons(self)
     return total
 end
 
--- Het hoogste gewicht van een lading telt mee zodra de bak weer leeg is
+-- Wat er uit de bak gaat, telt mee. peak = hoogste gewicht van deze lading, low = laagste gewicht sinds die piek; het
+-- verschil is al gelost en staat als "onderweg" (inFlightTons) meteen op het scherm, zodat de balken meelopen.
+--   * bak leeg: de hele lading (peak) telt
+--   * gedeeltelijk gelost en weer bijgeschept: het geloste deel telt, daarna begint een nieuwe lading
 function LoadAssist.updateBucketWeightAndTotals(self)
     local spec = self.spec_loadAssist
     local tons = LoadAssist.getCurrentBucketMassTons(self)
+    local dumped = spec.peakBucketTons - spec.lowBucketTons
     spec.currentBucketTons = tons
-    if tons > spec.peakBucketTons then
-        spec.peakBucketTons = tons
-    elseif tons <= LoadAssist.EMPTY_TONS and spec.peakBucketTons >= LoadAssist.MIN_LOAD_TONS then
-        for _, m in ipairs(spec.modeList) do
-            if m.enabled then
-                m.loaded = m.loaded + spec.peakBucketTons
-            end
+    if tons <= LoadAssist.EMPTY_TONS then
+        if spec.peakBucketTons >= LoadAssist.MIN_LOAD_TONS then
+            LoadAssist.addLoad(self, spec.peakBucketTons)
         end
-        spec.peakBucketTons = 0
-        LoadAssist.checkTargets(self, true)
+        spec.peakBucketTons, spec.lowBucketTons = 0, 0
+    elseif dumped >= LoadAssist.MIN_LOAD_TONS and tons > spec.lowBucketTons + LoadAssist.REFILL_TONS then
+        LoadAssist.addLoad(self, dumped)
+        spec.peakBucketTons, spec.lowBucketTons = tons, tons
+    elseif tons > spec.peakBucketTons then
+        spec.peakBucketTons, spec.lowBucketTons = tons, tons
+    elseif tons < spec.lowBucketTons then
+        spec.lowBucketTons = tons
     end
+    dumped = spec.peakBucketTons - spec.lowBucketTons
+    spec.inFlightTons = dumped >= LoadAssist.MIN_LOAD_TONS and dumped or 0
+end
+
+function LoadAssist.addLoad(self, tons)
+    for _, m in ipairs(self.spec_loadAssist.modeList) do
+        if m.enabled then
+            m.loaded = m.loaded + tons
+        end
+    end
+    LoadAssist.checkTargets(self, true)
+end
+
+-- Geladen gewicht zoals het op het scherm en in het menu staat: geteld plus wat nu uit de bak gaat
+function LoadAssist.getShownLoaded(spec, m)
+    return m.loaded + (m.enabled and spec.inFlightTons or 0)
+end
+
+function LoadAssist.getTextNode(spec, key)
+    for _, t in ipairs(spec.texts) do
+        if t.key == key then
+            return t.node
+        end
+    end
+    return nil
 end
 
 -- =====================================================================================================================
@@ -774,11 +897,21 @@ function LoadAssist.actionEventResetLoaded(self)
 end
 
 -- =====================================================================================================================
--- RESERVE ZONDER LETTERTYPE: de teksten met renderText op de plek van de tekst-nodes
+-- TEKENEN: vanuit de cabine het lichtgevende scherm (LoadAssistScreen). Staat het menu open, dan tekent het menu het
+-- scherm zelf eerst. Zonder lichtgevend scherm en zonder lettertype: de teksten met renderText op hun node.
 -- =====================================================================================================================
 function LoadAssist:onDraw()
     local spec = self.spec_loadAssist
-    if spec.useCustomFont or spec.screenState ~= "main" or #spec.texts == 0 or not self:getIsEntered() then
+    if not self:getIsEntered() then
+        return
+    end
+    if LoadAssistScreen ~= nil then
+        local menu = LoadAssistMenu ~= nil and LoadAssistMenu.state or nil
+        if (menu ~= nil and menu.vehicle == self) or LoadAssistScreen.draw(self) then
+            return
+        end
+    end
+    if spec.useCustomFont or spec.screenState ~= "main" or #spec.texts == 0 then
         return
     end
     for _, t in ipairs(spec.texts) do

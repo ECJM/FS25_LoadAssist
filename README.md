@@ -4,20 +4,26 @@
 
 # LoadAssist voor Farming Simulator 25
 
-LoadAssist is een weegsysteem voor wielladers en graafmachines in Farming Simulator 25. Op het scherm in de cabine zie je hoeveel er in de bak zit, de bakhoek, hoe schuin de machine staat en hoeveel je al geladen hebt voor de vrachtwagen en voor de hele opdracht. In een menu stel je de doelgewichten in, en haal je een doel, dan hoor je een geluid.
+LoadAssist is een weegsysteem voor wielladers en graafmachines in Farming Simulator 25. Op het lichtgevende scherm in de cabine zie je hoeveel er in de bak zit, de bakhoek, hoe schuin de machine staat en hoeveel je al geladen hebt voor de vrachtwagen en voor de hele opdracht, met balken van losse pixels die meelopen terwijl je lost. In een menu stel je de doelgewichten in, en haal je een doel, dan hoor je een geluid.
 
 LoadAssist is een *specialization*: een stukje gedrag dat een voertuig gebruikt. Op zichzelf doet de mod niets. Een voertuigmod voegt hem toe met één regel in zijn `modDesc.xml` en een `<loadAssist>` tag in de xml van het voertuig (zie [Toevoegen aan een voertuig](#toevoegen-aan-een-voertuig)). De Volvo L90 (`FS25_volvoL90`) gebruikt hem.
 
 ## Wat het doet
 
 - **Wegen**: het gewicht in de bak komt uit de vulunits van de bak en de machine. De eigen tanks van de machine (diesel, AdBlue, lucht, stroom, methaan) tellen niet mee.
-- **Twee tellers**, *Vrachtwagen* en *Opdracht*, elk met een voortgangsbalk en een doelgewicht. Zodra de bak leeg is, telt het hoogste gewicht van die lading mee bij de tellers die aan staan.
+- **Twee tellers**, *Vrachtwagen* en *Opdracht*, elk met een voortgangsbalk en een doelgewicht. Wat er uit de bak gaat, staat meteen bij de tellers die aan staan: de cijfers en de balken lopen mee terwijl je lost. Zodra de bak leeg is, of als je weer bijschept, telt die lading echt mee.
 - **Menu** (<kbd>Num /</kbd>) in "liquid glass"-stijl: doelgewicht instellen met − en + (Shift = x10), het muiswiel of door te typen, tellers aan/uit, RESET, en het geluid aan/uit met een testknop.
 - **Geluid en melding** als een teller zijn doelgewicht haalt. Het geluid kies je per voertuig in de xml.
 - **Scherm in de cabine**: uit, opstarten (3 s) en hoofdscherm met gewicht, bakhoek, helling voor/achter en links/rechts, en de tellers. De kleine bak op het scherm draait mee met de echte bak.
+- **Lichtgevend scherm**, net als bij DigAssist: vanuit de cabine tekent LoadAssist het scherm zelf, in perspectief precies over het 3D-scherm heen. Het licht op, ook 's nachts en in de schaduw.
+- **Pixelbalken**: de balken van Vrachtwagen en Opdracht bestaan uit losse pixels. Zolang een balk groeit, lichten de pixels aan de kop op; is het doel gehaald, dan loopt er een glans door de balk.
 - **Lettertype HandelGothic** (hetzelfde als in DigAssist) voor de teksten op het scherm en in het menu.
 - **Opslaan**: doelgewichten, tellers en het geluid worden per voertuig in de savegame bewaard.
 - **Stream Deck-iconen** voor alle functies.
+
+<p align="center">
+  <img src="docs/scherm-voorbeeld.png" width="720" alt="Het lichtgevende scherm van de Volvo L90: recht ervoor, vanuit de cabine, tijdens het lossen en met het doel gehaald">
+</p>
 
 <p align="center">
   <img src="docs/menu-voorbeeld.png" width="720" alt="Het menu van LoadAssist">
@@ -97,14 +103,18 @@ De iconen staan als PNG van 144 × 144 pixels in [`streamdeck-icons`](streamdeck
 ```xml
 <loadAssist mainScreenNode="0>0|3|0|0|5|1|0|2|0|2">
   <bars truckBarNode="0>0|3|0|0|5|1|0|2|3|0" truckTarget="25.0" />
-  <texts fontName="HANDELGOTHIC" fontSize="0.009"
+  <texts fontName="HANDELGOTHIC" fontSize="0.009" fontThickness="2.0"
          bucketWeightNode="0>0|3|0|0|5|1|0|2|4|0"
          truckLoadedNode="0>0|3|0|0|5|1|0|2|4|4"
          truckTargetNode="0>0|3|0|0|5|1|0|2|4|5" />
 </loadAssist>
 ```
 
-Een waarde als `0>0|3|0|0|5|1|0|2|0|2` verwijst naar een node in de i3d van het voertuig. Alles in de tag is optioneel; laat je iets weg, dan werkt alleen dat onderdeel niet. De groepen zijn `nodes`, `realParts`, `screenParts`, `bars`, `texts` en `sound`; de drie schermen staan op de tag zelf. De oude schrijfwijze (`<parts>` en `slopeRefNode` op de tag) werkt nog.
+Een waarde als `0>0|3|0|0|5|1|0|2|0|2` verwijst naar een node in de i3d van het voertuig. Alles in de tag is optioneel; laat je iets weg, dan werkt alleen dat onderdeel niet. De groepen zijn `nodes`, `realParts`, `screenParts`, `bars`, `texts`, `screen` en `sound`; de drie schermen staan op de tag zelf. De oude schrijfwijze (`<parts>` en `slopeRefNode` op de tag) werkt nog.
+
+HandelGothic is dun getekend: met een `fontThickness` onder 1 blijft er van de letters niets over, dus dan gebruikt de mod 1. 2.0 staat het best.
+
+Het lichtgevende scherm staat vanzelf aan en zoekt zijn plek uit het hoofdscherm en de tekst-nodes. Ligt het niet precies op het 3D-scherm, zet dan `<screen debug="true" />` en stel het bij met `size`, `offset` of `roll`; de uitleg staat in de documentatie onder *screen*.
 
 ### Volledige documentatie
 
@@ -115,9 +125,10 @@ Alle attributen, een volledig voorbeeld en "Problemen oplossen" staan in [`docs/
 | Map / bestand | Inhoud |
 |---|---|
 | [`scripts/LoadAssist.lua`](scripts/LoadAssist.lua) | De specialization: scherm, meten, tellers, doelgewicht en toetsen |
+| [`scripts/LoadAssistScreen.lua`](scripts/LoadAssistScreen.lua) | Het lichtgevende scherm vanuit de cabine: schermvlak, perspectief, pixelbalken en teksten |
 | [`scripts/LoadAssistMenu.lua`](scripts/LoadAssistMenu.lua) | Het menu om de doelgewichten in te stellen |
-| [`fonts`](fonts) | Lettertypen: HandelGothic voor de 3D-letters (`customFonts.xml`) en voor het menu (`handelgothic_overlay.dds`), en het oudere `DIGASSIST_FONT` |
-| [`textures`](textures) | De afbeeldingen van het menu: glas, schaduw en iconen |
+| [`fonts`](fonts) | Lettertypen: HandelGothic voor de 3D-letters (`customFonts.xml`) en voor het menu en het lichtgevende scherm (`handelgothic_overlay.dds`), en het oudere `DIGASSIST_FONT` |
+| [`textures`](textures) | De afbeeldingen van het menu (glas, schaduw en iconen) en `pixel.png` voor het lichtgevende scherm |
 | [`streamdeck-icons`](streamdeck-icons) | Iconen voor de Stream Deck en het logo |
 | [`docs`](docs) | De documentatie |
 | `modDesc.xml`, `icon.dds` | Beschrijving van de mod en het icoon in het spel |
@@ -131,6 +142,9 @@ Nieuw in 1.1:
 - Menu om de doelgewichten in te stellen, de tellers te resetten en het geluid aan of uit te zetten
 - Geluid en melding als een teller zijn doelgewicht haalt
 - Lettertype HandelGothic, ook voor de teksten op het scherm
+- Lichtgevend scherm vanuit de cabine, zoals bij DigAssist, met balken van losse pixels die meelopen bij het laden
+- De tellers lopen mee terwijl je lost
+- De 3D-letters lichten op (`emissiveScale`), en een te dunne `fontThickness` wordt 1 zodat de tekst altijd te zien is
 - Doelgewichten, tellers en het geluid worden in de savegame bewaard
 - De draaiing van de schermbak (`minRot`, `zeroRot`, `maxRot`) en het geluid zijn in de xml in te stellen
 - Als de motor uit gaat, gaan ook de voortgangsbalken uit
