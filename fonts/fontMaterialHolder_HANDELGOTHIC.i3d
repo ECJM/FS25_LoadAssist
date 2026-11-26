@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<i3D name="fontMaterialHolder_HANDELGOTHIC.i3d" version="1.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://i3d.giants.ch/schema/i3d-1.6.xsd">
+  <Asset>
+    <Export program="GIANTS Editor 64bit" version="10.0.14"/>
+  </Asset>
+
+  <Files>
+    <File fileId="4" filename="alphabetShader.xml"/>
+    <File fileId="5" filename="handelgothic_alpha.dds"/>
+    <File fileId="2" filename="handelgothic_normal.dds"/>
+    <File fileId="3" filename="font_specular.dds"/>
+  </Files>
+
+
+  <Materials>
+    <Material name="fontMP_mat" materialId="101" diffuseColor="0.501961 0.501961 0.501961 1" customShaderId="4">
+      <Normalmap fileId="2"/>
+      <Glossmap fileId="3"/>
+      <Custommap name="alphaMap" fileId="5"/>
+    </Material>
+    <Material name="fontMPNoNormal_mat" materialId="109" diffuseColor="0.501961 0.501961 0.501961 1" customShaderId="4">
+      <Glossmap fileId="3"/>
+      <Custommap name="alphaMap" fileId="5"/>
+    </Material>
+  </Materials>
+
+
+  <Shapes externalShapesFile="fontMaterialHolder.i3d.shapes">
+  </Shapes>
+
+  <Scene>
+    <TransformGroup name="fonts" nodeId="51">
+      <TransformGroup name="generic" nodeId="52">
+        <Shape name="generic" shapeId="1" clipDistance="15" nodeId="53" castsShadows="true" receiveShadows="true" decalLayer="2" materialIds="101"/>
+        <Shape name="generic_noNormal" translation="0 2 0" shapeId="2" clipDistance="15" nodeId="54" castsShadows="true" receiveShadows="true" decalLayer="2" materialIds="109"/>
+      </TransformGroup>
+    </TransformGroup>
+    <TransformGroup name="characters" nodeId="85">
+      <Shape name="character" translation="-2 0 0" shapeId="3" clipDistance="15" nodeId="86" castsShadows="true" receiveShadows="true" decalLayer="2" materialIds="101"/>
+    </TransformGroup>
+  </Scene>
+
+</i3D>

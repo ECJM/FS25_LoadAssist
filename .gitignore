@@ -1,0 +1,6 @@
+# Windows
+Thumbs.db
+desktop.ini
+
+# Gebouwde mod-zips (die horen in een release, niet in de broncode)
+*.zip

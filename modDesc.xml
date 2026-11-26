@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="105">
+    <author>Daan de Vos</author>
+    <version>1.1.0.0</version>
+
+    <title>
+        <en>Volvo Load Assist</en>
+        <nl>Volvo Load Assist</nl>
+    </title>
+
+    <description>
+        <en><![CDATA[Volvo Co-Pilot Load Assist: on-board weighing for wheel loaders and excavators.
+
+- Bucket weight, bucket angle and slope on the cab screen
+- Two counters, Truck and Job, each with a progress bar and a target weight
+- Num / opens a menu to set the target weights, reset the counters and switch the target sound on or off
+- A sound plays when a counter reaches its target weight]]></en>
+        <nl><![CDATA[Volvo Co-Pilot Load Assist: weegsysteem voor wielladers en graafmachines.
+
+- Gewicht in de bak, bakhoek en helling op het scherm in de cabine
+- Twee tellers, Vrachtwagen en Opdracht, elk met een voortgangsbalk en een doelgewicht
+- Num / opent een menu om de doelgewichten in te stellen, de tellers te resetten en het geluid aan of uit te zetten
+- Je hoort een geluid als een teller zijn doelgewicht haalt]]></nl>
+    </description>
+
+    <iconFilename>icon.dds</iconFilename>
+    <multiplayer supported="true" />
+
+    <specializations>
+        <specialization name="loadAssist" className="LoadAssist" filename="scripts/LoadAssist.lua" />
+    </specializations>
+
+    <extraSourceFiles>
+        <sourceFile filename="scripts/LoadAssistMenu.lua" />
+    </extraSourceFiles>
+
+    <actions>
+        <action name="LOAD_ASSIST_MENU"   category="VEHICLE" axisType="HALF" />
+        <action name="LOAD_ASSIST_SELECT" category="VEHICLE" axisType="HALF" />
+        <action name="LOAD_ASSIST_ADD"    category="VEHICLE" axisType="HALF" />
+        <action name="LOAD_ASSIST_REMOVE" category="VEHICLE" axisType="HALF" />
+        <action name="LOAD_ASSIST_RESET"  category="VEHICLE" axisType="HALF" />
+        <action name="LOAD_ASSIST_TOGGLE" category="VEHICLE" axisType="HALF" />
+    </actions>
+
+    <inputBinding>
+        <actionBinding action="LOAD_ASSIST_MENU">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_KP_divide" />
+        </actionBinding>
+        <actionBinding action="LOAD_ASSIST_SELECT">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_1" />
+        </actionBinding>
+        <actionBinding action="LOAD_ASSIST_ADD">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_equal" />
+        </actionBinding>
+        <actionBinding action="LOAD_ASSIST_REMOVE">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_minus" />
+        </actionBinding>
+        <actionBinding action="LOAD_ASSIST_RESET">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_0" />
+        </actionBinding>
+        <actionBinding action="LOAD_ASSIST_TOGGLE">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_2" />
+        </actionBinding>
+    </inputBinding>
+
+    <l10n>
+        <text name="input_LOAD_ASSIST_MENU">
+            <en>Load Assist: Open menu (target weights)</en>
+            <nl>Load Assist: Menu openen (doelgewichten)</nl>
+        </text>
+        <text name="input_LOAD_ASSIST_SELECT">
+            <en>Load Assist: Switch Truck / Job mode</en>
+            <nl>Load Assist: Wissel Vrachtwagen / Opdracht</nl>
+        </text>
+        <text name="input_LOAD_ASSIST_ADD">
+            <en>Load Assist: Target weight +2.5t</en>
+            <nl>Load Assist: Doelgewicht +2.5t</nl>
+        </text>
+        <text name="input_LOAD_ASSIST_REMOVE">
+            <en>Load Assist: Target weight -2.5t</en>
+            <nl>Load Assist: Doelgewicht -2.5t</nl>
+        </text>
+        <text name="input_LOAD_ASSIST_RESET">
+            <en>Load Assist: Reset loaded weight</en>
+            <nl>Load Assist: Reset geladen gewicht</nl>
+        </text>
+        <text name="input_LOAD_ASSIST_TOGGLE">
+            <en>Load Assist: Toggle Truck / Job ON/OFF</en>
+            <nl>Load Assist: Zet Vrachtwagen / Opdracht Aan/Uit</nl>
+        </text>
+    </l10n>
+</modDesc>

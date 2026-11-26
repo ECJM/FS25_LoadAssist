@@ -1,0 +1,6 @@
+# Bestanden precies zo bewaren als ze zijn (geen regeleinde-omzetting): de game leest ze byte voor byte
+* -text
+
+# Niet meenemen in een mod-zip gemaakt met 'git archive'
+.gitignore export-ignore
+.gitattributes export-ignore
