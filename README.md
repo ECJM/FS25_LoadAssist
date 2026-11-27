@@ -21,8 +21,9 @@ LoadAssist is een *specialization*: een stukje gedrag dat een voertuig gebruikt.
 - **Pixelbalken**: de balken van Vrachtwagen en Opdracht bestaan uit losse pixels. Zolang een balk groeit, lichten de pixels aan de kop op; is het doel gehaald, dan loopt er een glans door de balk.
 - **Lettertype HandelGothic** (hetzelfde als in DigAssist) voor de teksten op het scherm en in het menu.
 - **Opslaan**: doelgewichten, tellers en het geluid worden per voertuig in de savegame bewaard. In multiplayer telt de server en ziet iedereen dezelfde waarden, ook wie later meedoet; een dedicated server bewaart ze ook goed.
-- **Stream Deck-iconen** voor alle functies.
+- **Stream Deck-iconen** voor alle functies, in het Nederlands en het Engels.
 - **Documentatie** in het Nederlands en het Engels: bovenaan de pagina wissel je van taal.
+- **Nederlands en Engels in het spel**: het menu, het scherm, de hulp (F1) en de meldingen volgen de taal van het spel. Nederlands in een Nederlands spel, Engels in elke andere taal.
 
 <p align="center">
   <img src="docs/scherm-voorbeeld.png" width="720" alt="Het lichtgevende scherm: recht ervoor, vanuit de cabine, tijdens het lossen en met het doel gehaald">
@@ -178,5 +179,6 @@ Nieuw in 1.1:
 - Multiplayer: de server telt de ladingen en iedereen ziet dezelfde doelgewichten en tellers; wie later meedoet krijgt ze ook, en een dedicated server bewaart ze in de savegame
 - De draaiing van de schermbak (`minRot`, `zeroRot`, `maxRot`) en het geluid zijn in de xml in te stellen
 - Als de motor uit gaat, gaan ook de voortgangsbalken uit
-- Nieuw mod-icoon en Stream Deck-iconen
+- Nieuw mod-icoon en Stream Deck-iconen, in het Nederlands en het Engels
+- De teksten in het spel in het Nederlands en Engels, in de taal van het spel
 - Documentatie in het Nederlands en het Engels

@@ -13,7 +13,7 @@ LoadAssist is a *specialization*: a piece of behaviour that a vehicle uses. On i
 ## What it does
 
 - **Weighing**: the weight in the bucket comes from the fill units of the bucket and the machine. The machine's own tanks (diesel, DEF, air, electric charge, methane) do not count.
-- **Two counters**, *Vrachtwagen* (Truck) and *Opdracht* (Job), each with a progress bar and a target weight. What leaves the bucket shows up right away at the counters that are on: the numbers and the bars follow along while you unload. As soon as the bucket is empty, or when you scoop up more, that load really counts.
+- **Two counters**, *Truck* and *Job*, each with a progress bar and a target weight. What leaves the bucket shows up right away at the counters that are on: the numbers and the bars follow along while you unload. As soon as the bucket is empty, or when you scoop up more, that load really counts.
 - **Menu** (<kbd>Ctrl</kbd> + <kbd>R</kbd>) in "liquid glass" style: set the target weight with − and + (Shift = x10), the mouse wheel or by typing, switch counters on or off, RESET, and switch the sound on or off with a test button.
 - **Pling and notification** when a counter reaches its target weight. The pling is the mod's own two-tone sound; you can set a different sound or volume per vehicle in the xml.
 - **Screen in the cab**: off, start-up (3 s) and main screen with the weight, bucket angle (with a degree sign), front/back and left/right slope, and the counters. The small bucket on the screen turns along with the real bucket.
@@ -21,17 +21,16 @@ LoadAssist is a *specialization*: a piece of behaviour that a vehicle uses. On i
 - **Pixel bars**: the Truck and Job bars are made of separate pixels. While a bar grows, the pixels at its head light up; when the target is reached, a shine runs through the bar.
 - **HandelGothic font** (the same as in DigAssist) for the texts on the screen and in the menu.
 - **Saving**: target weights, counters and the sound setting are kept per vehicle in the savegame. In multiplayer the server counts and everyone sees the same values, also players who join later; a dedicated server saves them correctly too.
-- **Stream Deck icons** for every function.
+- **Stream Deck icons** for every function, in English and Dutch.
 - **Documentation** in Dutch and English: you switch the language at the top of the page.
-
-The mod's own texts in the game (menu, screen and notifications) are in Dutch for now. A short glossary: *Vrachtwagen* = Truck, *Opdracht* = Job, *Doelgewicht* = target weight, *DOEL GEHAALD* = target reached, *Geluid bij doel* = sound at target, *WISSEL* = switch, *AAN/UIT* = on/off.
+- **English and Dutch in the game**: the menu, the screen, the help (F1) and the notifications follow the language of the game. Dutch in a Dutch game, English in every other language.
 
 <p align="center">
   <img src="docs/scherm-voorbeeld.png" width="720" alt="The luminous screen: straight on, from the cab, while unloading and with the target reached">
 </p>
 
 <p align="center">
-  <img src="docs/menu-voorbeeld.png" width="720" alt="The LoadAssist menu">
+  <img src="docs/menu-example.png" width="720" alt="The LoadAssist menu">
 </p>
 
 ## Requirements
@@ -180,5 +179,6 @@ New in 1.1:
 - Multiplayer: the server counts the loads and everyone sees the same target weights and counters; players who join later get them too, and a dedicated server keeps them in the savegame
 - The rotation of the screen bucket (`minRot`, `zeroRot`, `maxRot`) and the sound can be set in the xml
 - When the engine stops, the progress bars switch off too
-- New mod icon and Stream Deck icons
+- New mod icon and Stream Deck icons, in English and Dutch
+- The texts in the game in English and Dutch, in the language of the game
 - Documentation in Dutch and English
