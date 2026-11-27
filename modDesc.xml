@@ -13,13 +13,13 @@
 
 - Bucket weight, bucket angle and slope on the cab screen
 - Two counters, Truck and Job, each with a progress bar and a target weight
-- Num / opens a menu to set the target weights, reset the counters and switch the target sound on or off
+- Ctrl + R opens a menu to set the target weights, reset the counters and switch the target sound on or off
 - A sound plays when a counter reaches its target weight]]></en>
         <nl><![CDATA[Volvo Co-Pilot Load Assist: weegsysteem voor wielladers en graafmachines.
 
 - Gewicht in de bak, bakhoek en helling op het scherm in de cabine
 - Twee tellers, Vrachtwagen en Opdracht, elk met een voortgangsbalk en een doelgewicht
-- Num / opent een menu om de doelgewichten in te stellen, de tellers te resetten en het geluid aan of uit te zetten
+- Ctrl + R opent een menu om de doelgewichten in te stellen, de tellers te resetten en het geluid aan of uit te zetten
 - Je hoort een geluid als een teller zijn doelgewicht haalt]]></nl>
     </description>
 
@@ -46,22 +46,22 @@
 
     <inputBinding>
         <actionBinding action="LOAD_ASSIST_MENU">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_KP_divide" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_r" />
         </actionBinding>
         <actionBinding action="LOAD_ASSIST_SELECT">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_1" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_h" />
         </actionBinding>
         <actionBinding action="LOAD_ASSIST_ADD">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_equal" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_l" />
         </actionBinding>
         <actionBinding action="LOAD_ASSIST_REMOVE">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_minus" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_u" />
         </actionBinding>
         <actionBinding action="LOAD_ASSIST_RESET">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_0" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lctrl KEY_o" />
         </actionBinding>
         <actionBinding action="LOAD_ASSIST_TOGGLE">
-            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_2" />
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lshift KEY_l" />
         </actionBinding>
     </inputBinding>
 

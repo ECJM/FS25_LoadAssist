@@ -21,8 +21,10 @@ Screen.i3dShapes  = {}                   -- i3d-bestand -> lijst met shapes en h
 
 -- Overlay-letters: de letter-afbeelding van de 3D-letters met de drempel van de shader al toegepast, voor vier
 -- letterdiktes onder elkaar (37 vakjes per rij, 2 rijen per dikte). De maten per teken komen uit fonts/customFonts.xml.
+-- cropBottom: zoveel van de onderkant van een vakje laat de laag weg. De 3D-letters verliezen daar spacing y (0.04),
+-- maar vanaf letterdikte 1.5 zakt de onderkant van de letters (zoals de 0) tot in die rand.
 Screen.FONT = { name = "HANDELGOTHIC", file = "fonts/handelgothic_overlay.dds", columns = 37, rows = 2,
-                thicknesses = { 1.0, 1.5, 2.0, 2.5 }, capBottom = 0.016, capTop = 0.797 }
+                thicknesses = { 1.0, 1.5, 2.0, 2.5 }, capBottom = 0.016, capTop = 0.797, cropBottom = 0.005 }
 
 -- Kleuren zoals setOverlayColor ze wil (lineair; het groen is #76c48a, hetzelfde als de geladen-teksten)
 Screen.COLORS = {
@@ -152,13 +154,17 @@ function Screen.glyph(font, ch)
     return c, w, w + font.charToChar * (sx / rsx), ox, oy
 end
 
--- Deel van de letter-afbeelding voor teken c: s0, t0 (linksonder) en s1, t1 (rechtsboven)
+-- Deel van de letter-afbeelding voor teken c: s0, t0 (linksonder) en s1, t1 (rechtsboven), en drop: zoveel (in delen
+-- van de letterhoogte) loopt het vlakje verder naar onderen dan bij CharacterLine. Onderaan valt alleen
+-- font.cropBottom van het vakje weg in plaats van spacing y; de letter blijft even groot en op dezelfde plek.
 function Screen.glyphUV(font, c, block)
     local numRows, pitch = font.rows * #font.thicknesses, font.columns - 0.01 -- zoals de shader: floor(fmod(index, 36.99)) / 36.99
     local col = math.floor(math.fmod(c.uvIndex, pitch))
     local row = block * font.rows + math.floor(c.uvIndex / font.columns)
-    return c.spacingX / font.columns + col / pitch, 1 - (row + 1 - c.spacingY) / numRows,
-           (1 - c.spacingX) / font.columns + col / pitch, 1 - (row + c.spacingY) / numRows
+    local bottom = math.min(c.spacingY, font.cropBottom or c.spacingY)
+    return c.spacingX / font.columns + col / pitch, 1 - (row + 1 - bottom) / numRows,
+           (1 - c.spacingX) / font.columns + col / pitch, 1 - (row + c.spacingY) / numRows,
+           (c.spacingY - bottom) / (1 - 2 * c.spacingY)
 end
 
 -- Het blok in de letter-afbeelding met de letterdikte die het dichtst bij thickness ligt
@@ -336,11 +342,16 @@ end
 
 -- =====================================================================================================================
 -- SCHERMVLAK
--- Alles in het assenstelsel van het hoofdscherm (mainScreenNode), zodat het meebeweegt met de cabine:
---   * midden en maat: de omsluitende bol van zijn vorm (straal = halve diagonaal) en de verhouding breedte/hoogte
---   * normaal (naar de bestuurder): het vlak door de tekst-nodes; bij de L90 zit de schuine stand in de vorm zelf, dus
---     geen as van de node ligt langs het scherm
---   * omhoog: omhoog van het voertuig, in het vlak gelegd; rechts = omhoog x normaal
+-- Alles in het assenstelsel van het hoofdscherm (mainScreenNode), zodat het meebeweegt met de cabine. Twee manieren:
+--   * hoek-nodes (<screen topLeftNode topRightNode bottomLeftNode>): drie lege nodes die in de GIANTS Editor op de
+--     hoeken van het beeld zijn gezet. Midden, stand en maat komen dan precies daaruit.
+--   * anders automatisch:
+--       - midden en maat: de omsluitende bol van zijn vorm (straal = halve diagonaal) en de verhouding breedte/hoogte,
+--         of <screen size>
+--       - normaal (naar de bestuurder): de Z-as van alignNode, anders het vlak door de tekst-nodes (de schuine stand
+--         kan in de vorm zelf zitten, en dan ligt geen as van de node langs het scherm)
+--       - omhoog: de Y-as van alignNode, anders omhoog van het voertuig, in het vlak gelegd; rechts = omhoog x normaal
+-- Daarna draait roll het vlak en schuift offset het op (rechts, omhoog en naar de bestuurder).
 -- =====================================================================================================================
 function Screen.fitTextPlane(spec, node)
     local pts, mx, my, mz, zx, zy, zz = {}, 0, 0, 0, 0, 0, 0
@@ -388,18 +399,76 @@ function Screen.fitTextPlane(spec, node)
     return nx, ny, nz, source
 end
 
-function Screen.computeFrame(vehicle)
+-- Wereld-meters per eenheid langs (dx, dy, dz) in node: de node of zijn ouders kunnen geschaald zijn
+function Screen.worldLength(node, dx, dy, dz)
+    local ax, ay, az = localToWorld(node, 0, 0, 0)
+    local bx, by, bz = localToWorld(node, dx, dy, dz)
+    local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2 + (bz - az) ^ 2)
+    return len > 0.000001 and len or 1
+end
+
+-- -1 als node gespiegeld in de wereld staat (een oneven aantal negatieve schalen in de node en zijn ouders), anders 1.
+-- Dan wijst rechts x omhoog, in de node uitgerekend, naar de achterkant van het beeld.
+function Screen.handedness(node)
+    local ox, oy, oz = localToWorld(node, 0, 0, 0)
+    local ax, ay, az = localToWorld(node, 1, 0, 0)
+    local bx, by, bz = localToWorld(node, 0, 1, 0)
+    local cx, cy, cz = localToWorld(node, 0, 0, 1)
+    ax, ay, az, bx, by, bz, cx, cy, cz = ax - ox, ay - oy, az - oz, bx - ox, by - oy, bz - oz, cx - ox, cy - oy, cz - oz
+    local det = ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)
+    return det < 0 and -1 or 1
+end
+
+-- Het vlak uit de drie hoek-nodes: rechts = linksboven -> rechtsboven, omhoog = linksonder -> linksboven (loodrecht op
+-- rechts gemaakt), normaal = rechts x omhoog (naar de bestuurder), midden = halverwege rechtsboven en linksonder.
+-- nil als er geen hoek-nodes zijn, of (met een waarschuwing) als ze niet bruikbaar zijn.
+function Screen.frameFromCorners(spec, node)
+    local corners = spec.screen.corners or {}
+    local tl, tr, bl = corners[1], corners[2], corners[3]
+    if tl == nil and tr == nil and bl == nil then
+        return nil
+    end
+    if not (exists(tl) and exists(tr) and exists(bl)) then
+        Logging.warning("LoadAssist: <screen> heeft topLeftNode, topRightNode en bottomLeftNode alle drie nodig; de hoek-nodes worden niet gebruikt.")
+        return nil
+    end
+    local ax, ay, az = worldToLocal(node, getWorldTranslation(tl))
+    local bx, by, bz = worldToLocal(node, getWorldTranslation(tr))
+    local lx, ly, lz = worldToLocal(node, getWorldTranslation(bl))
+    local rx, ry, rz, w = normalize(bx - ax, by - ay, bz - az)
+    local vx, vy, vz = ax - lx, ay - ly, az - lz
+    local d = vx * rx + vy * ry + vz * rz
+    local ux, uy, uz, h = normalize(vx - d * rx, vy - d * ry, vz - d * rz)
+    if w < 0.001 or h < 0.001 then
+        Logging.warning("LoadAssist: de hoek-nodes van <screen> liggen te dicht op elkaar of op één lijn; ze worden niet gebruikt.")
+        return nil
+    end
+    local hand = Screen.handedness(node) -- in een gespiegelde node wijst rechts x omhoog van het beeld af
+    local f = { cx = (bx + lx) * 0.5, cy = (by + ly) * 0.5, cz = (bz + lz) * 0.5,
+                nx = hand * (ry * uz - rz * uy), ny = hand * (rz * ux - rx * uz), nz = hand * (rx * uy - ry * ux),
+                rx = rx, ry = ry, rz = rz, ux = ux, uy = uy, uz = uz, w = w, h = h, source = "de hoek-nodes" }
+    -- Zit de camera achter het vlak, dan zijn links en rechts (of boven en onder) verwisseld en staat het beeld gespiegeld
+    local camera = getCamera ~= nil and getCamera() or 0
+    if exists(camera) then
+        local cx, cy, cz = worldToLocal(node, getWorldTranslation(camera))
+        if (cx - f.cx) * f.nx + (cy - f.cy) * f.ny + (cz - f.cz) * f.nz < 0 then
+            Logging.warning("LoadAssist: de hoek-nodes van <screen> lijken verwisseld (links en rechts, of boven en onder); het beeld staat gespiegeld.")
+        end
+    end
+    return f
+end
+
+-- Het vlak automatisch: midden en maat uit de vorm van het hoofdscherm, de stand uit alignNode of de tekst-nodes
+function Screen.frameFromShape(vehicle, node)
     local spec = vehicle.spec_loadAssist
     local cfg = spec.screen
-    cfg.frameDone, cfg.frame = true, nil
-    local node = spec.mainScreenNode
-    if not exists(node) or getShapeGeometryBoundingSphere == nil or localDirectionToLocal == nil then
-        return
+    if getShapeGeometryBoundingSphere == nil then
+        return nil
     end
     local ok, cx, cy, cz, radius = pcall(getShapeGeometryBoundingSphere, node)
     if not ok or radius == nil or radius <= 0 then
-        Logging.warning("LoadAssist: het hoofdscherm heeft geen vorm; het scherm wordt niet als lichtgevende laag getekend.")
-        return
+        Logging.warning("LoadAssist: het hoofdscherm heeft geen vorm; zet hoek-nodes in <screen>, anders wordt het scherm niet als lichtgevende laag getekend.")
+        return nil
     end
 
     -- Normaal: uit alignNode (Z), anders door de tekst-nodes
@@ -411,15 +480,17 @@ function Screen.computeFrame(vehicle)
         nx, ny, nz, source = Screen.fitTextPlane(spec, node)
     end
     if nx == nil or (nx == 0 and ny == 0 and nz == 0) then
-        Logging.warning("LoadAssist: de stand van het scherm is niet te bepalen (geen tekst-nodes); zet <screen alignNode=...> in de xml.")
-        return
+        Logging.warning("LoadAssist: de stand van het scherm is niet te bepalen (geen tekst-nodes); zet hoek-nodes of alignNode in <screen>.")
+        return nil
     end
-    -- De camera in de cabine zit altijd vóór het scherm
+    -- De camera in de cabine (binnen 3 m) zit altijd vóór het scherm
     local camera = getCamera ~= nil and getCamera() or 0
     if exists(camera) then
-        local lx, ly, lz = worldToLocal(node, getWorldTranslation(camera))
+        local wx, wy, wz = getWorldTranslation(camera)
+        local mx, my, mz = localToWorld(node, cx, cy, cz)
+        local lx, ly, lz = worldToLocal(node, wx, wy, wz)
         local dx, dy, dz = lx - cx, ly - cy, lz - cz
-        if dx * dx + dy * dy + dz * dz < 9 and dx * nx + dy * ny + dz * nz < 0 then
+        if (wx - mx) ^ 2 + (wy - my) ^ 2 + (wz - mz) ^ 2 < 9 and dx * nx + dy * ny + dz * nz < 0 then
             nx, ny, nz = -nx, -ny, -nz
         end
     end
@@ -441,40 +512,55 @@ function Screen.computeFrame(vehicle)
     end
     if ulen < 0.000001 then
         Logging.warning("LoadAssist: kan 'omhoog' van het scherm niet bepalen; het scherm wordt niet als lichtgevende laag getekend.")
-        return
+        return nil
     end
-    local rx, ry, rz = normalize(uy * nz - uz * ny, uz * nx - ux * nz, ux * ny - uy * nx)
-    if cfg.roll ~= 0 then
-        local c, s = math.cos(math.rad(cfg.roll)), math.sin(math.rad(cfg.roll))
-        ux, uy, uz = ux * c - rx * s, uy * c - ry * s, uz * c - rz * s
-        rx, ry, rz = normalize(uy * nz - uz * ny, uz * nx - ux * nz, ux * ny - uy * nx)
-    end
+    -- Rechts = omhoog x normaal; in een gespiegelde node andersom, anders staat het beeld in spiegelschrift
+    local hand = Screen.handedness(node)
+    local rx, ry, rz = normalize(hand * (uy * nz - uz * ny), hand * (uz * nx - ux * nz), hand * (ux * ny - uy * nx))
 
-    -- Maat: <screen size>, anders uit de straal (halve diagonaal) en de verhouding breedte/hoogte
+    -- Maat: <screen size> in meter, anders uit de straal (halve diagonaal) en de verhouding breedte/hoogte
     local w, h
     if cfg.size ~= nil then
-        w, h = cfg.size[1], cfg.size[2]
+        w, h = cfg.size[1] / Screen.worldLength(node, rx, ry, rz), cfg.size[2] / Screen.worldLength(node, ux, uy, uz)
     else
         local a = math.max(cfg.aspect, 0.01)
         w, h = 2 * radius * a / math.sqrt(1 + a * a), 2 * radius / math.sqrt(1 + a * a)
     end
-    if cfg.offset ~= nil then
-        cx, cy, cz = cx + cfg.offset[1] * rx + cfg.offset[2] * ux, cy + cfg.offset[1] * ry + cfg.offset[2] * uy,
-                     cz + cfg.offset[1] * rz + cfg.offset[2] * uz
+    return { cx = cx, cy = cy, cz = cz, nx = nx, ny = ny, nz = nz, rx = rx, ry = ry, rz = rz, ux = ux, uy = uy, uz = uz,
+             w = w, h = h, source = string.format("de vorm (straal %.4f), stand uit %s", radius, source) }
+end
+
+function Screen.computeFrame(vehicle)
+    local spec = vehicle.spec_loadAssist
+    local cfg = spec.screen
+    cfg.frameDone, cfg.frame = true, nil
+    local node = spec.mainScreenNode
+    if not exists(node) or localDirectionToLocal == nil then
+        return
+    end
+    local f = Screen.frameFromCorners(spec, node) or Screen.frameFromShape(vehicle, node)
+    if f == nil then
+        return
+    end
+    local cx, cy, cz, nx, ny, nz = f.cx, f.cy, f.cz, f.nx, f.ny, f.nz
+    local rx, ry, rz, ux, uy, uz = f.rx, f.ry, f.rz, f.ux, f.uy, f.uz
+    if cfg.roll ~= 0 then -- rechts en omhoog samen in het vlak draaien
+        local c, s = math.cos(math.rad(cfg.roll)), math.sin(math.rad(cfg.roll))
+        rx, ry, rz, ux, uy, uz = rx * c + ux * s, ry * c + uy * s, rz * c + uz * s, ux * c - rx * s, uy * c - ry * s, uz * c - rz * s
+    end
+    if cfg.offset ~= nil then -- in meter, ook als de node geschaald is
+        local o1 = cfg.offset[1] / Screen.worldLength(node, rx, ry, rz)
+        local o2 = cfg.offset[2] / Screen.worldLength(node, ux, uy, uz)
+        local o3 = (cfg.offset[3] or 0) / Screen.worldLength(node, nx, ny, nz)
+        cx, cy, cz = cx + o1 * rx + o2 * ux + o3 * nx, cy + o1 * ry + o2 * uy + o3 * ny, cz + o1 * rz + o2 * uz + o3 * nz
     end
 
-    -- Wereld-meters per eenheid van het vlak (de node of zijn ouders kunnen geschaald zijn), voor de lettergrootte
-    local function worldLength(dx, dy, dz)
-        local ax, ay, az = localToWorld(node, cx, cy, cz)
-        local bx, by, bz = localToWorld(node, cx + dx, cy + dy, cz + dz)
-        local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2 + (bz - az) ^ 2)
-        return len > 0.000001 and len or 1
-    end
+    -- Wereld-meters per eenheid van het vlak, voor de lettergrootte en de maat in de log
+    local wpuU, wpuV = Screen.worldLength(node, rx, ry, rz), Screen.worldLength(node, ux, uy, uz)
     cfg.frame = { node = node, cx = cx, cy = cy, cz = cz, nx = nx, ny = ny, nz = nz, rx = rx, ry = ry, rz = rz,
-                  ux = ux, uy = uy, uz = uz, meshW = w, meshH = h,
-                  wpuU = worldLength(rx, ry, rz), wpuV = worldLength(ux, uy, uz) }
-    Logging.info("LoadAssist: scherm %.4f x %.4f m (straal %.4f), midden %.4f %.4f %.4f, normaal %.3f %.3f %.3f (uit %s), omhoog %.3f %.3f %.3f",
-        w, h, radius, cx, cy, cz, nx, ny, nz, source, ux, uy, uz)
+                  ux = ux, uy = uy, uz = uz, meshW = f.w, meshH = f.h, wpuU = wpuU, wpuV = wpuV }
+    Logging.info("LoadAssist: scherm %.4f x %.4f m uit %s; midden %.4f %.4f %.4f, normaal %.3f %.3f %.3f, omhoog %.3f %.3f %.3f",
+        f.w * wpuU, f.h * wpuV, f.source, cx, cy, cz, nx, ny, nz, ux, uy, uz)
 end
 
 -- =====================================================================================================================
@@ -624,7 +710,9 @@ function Screen.createCanvas(frame, brightness)
             n = math.min(10, math.ceil(math.sqrt(err / TOLERANCE)))
         end
         hasTex = tex ~= nil
-        local texSafe = (soft and hasTex) and 0.04 * n or nil -- rond elk lettervak is minstens 4% leeg
+        -- Buiten het venster van een letter is minstens 2% leeg: boven de rand van het vakje, onder het stukje rand
+        -- dat over is plus de lege bovenkant van het vakje eronder
+        local texSafe = (soft and hasTex) and 0.02 * n or nil
         local grow = n > 1 and 0.35 or 0                     -- tegels een fractie laten overlappen tegen naadjes
         local h1u, h1v, h2u, h2v = e1u * 0.5 / n, e1v * 0.5 / n, e2u * 0.5 / n, e2v * 0.5 / n
         for i = 0, n - 1 do
@@ -681,8 +769,9 @@ function Screen.createCanvas(frame, brightness)
             local chr = i <= len and list[len - i + 1] or " "
             local c, w, advance, ox, oy = Screen.glyph(font, chr)
             if c ~= nil and chr ~= " " then
-                local s0, t0, s1, t1 = Screen.glyphUV(font, c, block)
-                quads[#quads + 1] = { x = xPos - advance * 0.5 + advance * ox, y = 0.5 + oy, w = w, tex = { s0, t0, s1, t1 } }
+                local s0, t0, s1, t1, drop = Screen.glyphUV(font, c, block)
+                quads[#quads + 1] = { x = xPos - advance * 0.5 + advance * ox, y = 0.5 + oy - drop * 0.5, w = w,
+                                      h = 1 + drop, tex = { s0, t0, s1, t1 } }
             end
             xPos = xPos - advance
             if chr ~= " " and chr ~= "" then
@@ -724,7 +813,7 @@ function Screen.createCanvas(frame, brightness)
         local rootX = width * 0.5
         setOverlayColor(font.overlay, light(color[1]), light(color[2]), light(color[3]), color[4] or 1)
         for _, q in ipairs(quads) do
-            item(font.overlay, u + (q.x + rootX) * sizeU, v + q.y * sizeV, q.w * sizeU, sizeV, 0, q.tex, true, false)
+            item(font.overlay, u + (q.x + rootX) * sizeU, v + q.y * sizeV, q.w * sizeU, q.h * sizeV, 0, q.tex, true, false)
         end
         return width * sizeU
     end
@@ -951,8 +1040,10 @@ function Screen.drawTexts(vehicle, cv)
     end
 end
 
--- Controle (<screen debug="true">): de rand van het schermvlak en een kruisje op elke tekst-node
+-- Controle (<screen debug="true">): de rand van het schermvlak, een kruisje op elke tekst-node en een groter kruis op
+-- elke hoek-node
 function Screen.drawDebug(vehicle, cv)
+    local spec = vehicle.spec_loadAssist
     local C = Screen.COLORS.debug
     local w, h = cv.width, cv.height
     local t = math.max(w, h) * 0.006
@@ -960,11 +1051,18 @@ function Screen.drawDebug(vehicle, cv)
     cv.fill(C, 0, -h * 0.5, w + t, t)
     cv.fill(C, -w * 0.5, 0, t, h + t)
     cv.fill(C, w * 0.5, 0, t, h + t)
-    for _, text in ipairs(vehicle.spec_loadAssist.texts) do
-        local u, v = cv.nodePoint(text.node)
+    local function cross(node, size)
+        local u, v = cv.nodePoint(node)
         if u ~= nil then
-            cv.fill(C, u, v, t * 4, t * 0.5)
-            cv.fill(C, u, v, t * 0.5, t * 4)
+            cv.fill(C, u, v, t * size, t * 0.5)
+            cv.fill(C, u, v, t * 0.5, t * size)
         end
+    end
+    for _, text in ipairs(spec.texts) do
+        cross(text.node, 4)
+    end
+    local corners = spec.screen.corners or {}
+    for i = 1, 3 do
+        cross(corners[i], 8)
     end
 end

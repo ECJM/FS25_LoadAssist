@@ -1,5 +1,5 @@
 -- =====================================================================================================================
--- LoadAssistMenu: het menu van LoadAssist in "liquid glass"-stijl (Num / in de cabine).
+-- LoadAssistMenu: het menu van LoadAssist in "liquid glass"-stijl (Ctrl + R in de cabine).
 --
 -- Per teller (Vrachtwagen en Opdracht): aan/uit, het geladen gewicht met een voortgangsbalk, het doelgewicht met - en +
 -- (Shift = x10, ook met het muiswiel) of door op het doel te klikken en te typen, en RESET (teller op 0). Rechtsklik op
@@ -227,9 +227,9 @@ function Menu.text(str, x, y, cap, color, alpha, align, thickness)
     local block = LoadAssistScreen.thicknessBlock(font, thickness or 1.5)
     setOverlayColor(ovl, color[1], color[2], color[3], alpha * Menu.alpha)
     for _, q in ipairs((Menu.layoutText(str))) do
-        local u0, v0, u1, v1 = LoadAssistScreen.glyphUV(font, q.c, block)
+        local u0, v0, u1, v1, drop = LoadAssistScreen.glyphUV(font, q.c, block)
         setOverlayUVs(ovl, u0, v0, u0, v1, u1, v0, u1, v1)
-        renderOverlay(ovl, (left + q.x * size) / W, (base + q.y * size) / H, q.w * size / W, size / H)
+        renderOverlay(ovl, (left + q.x * size) / W, (base + (q.y - drop) * size) / H, q.w * size / W, (1 + drop) * size / H)
     end
     return width
 end

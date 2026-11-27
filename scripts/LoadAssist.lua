@@ -5,7 +5,7 @@
 -- tellers met een voortgangsbalk: Vrachtwagen en Opdracht. Wat er uit de bak gaat, telt meteen mee bij de tellers die
 -- aan staan, dus de balken lopen mee terwijl je lost. Haalt een teller zijn doelgewicht, dan klinkt er een geluid.
 -- Vanuit de cabine wordt het scherm als lichtgevende laag getekend (scripts/LoadAssistScreen.lua), met balken van losse
--- pixels. Met Num / opent een menu (scripts/LoadAssistMenu.lua) om de doelgewichten in te stellen en te resetten.
+-- pixels. Met Ctrl + R opent een menu (scripts/LoadAssistMenu.lua) om de doelgewichten in te stellen en te resetten.
 --
 -- Alle XML-attributen staan in docs/LoadAssist-documentatie.html.
 -- =====================================================================================================================
@@ -18,7 +18,7 @@ LoadAssist.SPEC_KEY = string.format("spec_%s.loadAssist", LoadAssist.MOD_NAME)
 LoadAssist.BOOT_TIME     = 3000  -- ms opstartscherm
 LoadAssist.TARGET_MIN    = 0.5   -- t
 LoadAssist.TARGET_MAX    = 9999  -- t
-LoadAssist.KEY_STEP      = 2.5   -- t per toetsdruk (Alt+= / Alt+-)
+LoadAssist.KEY_STEP      = 2.5   -- t per toetsdruk (Ctrl + L / Ctrl + U)
 LoadAssist.EMPTY_TONS    = 0.02  -- onder dit gewicht is de bak leeg
 LoadAssist.MIN_LOAD_TONS = 0.05  -- lichtere ladingen tellen niet mee
 LoadAssist.REFILL_TONS   = 0.05  -- zoveel weer bijgeschept na een gedeeltelijke lossing: wat eruit was, telt
@@ -29,9 +29,12 @@ LoadAssist.BAR_EASE_TIME = 140   -- ms, balken lopen zacht naar hun waarde
 LoadAssist.BAR_FLOW_TIME = 700   -- ms, zo lang lichten de pixels aan de kop nog na
 LoadAssist.FADE_TIME     = 400   -- ms, scherm licht op bij het opstarten
 LoadAssist.SCREEN_ASPECT = 1568 / 2750 -- breedte / hoogte van de schermafbeelding (L90)
+LoadAssist.DEGREE        = "\194\176" -- het gradenteken in UTF-8; HANDELGOTHIC heeft het (fonts/customFonts.xml)
 LoadAssist.DEFAULT_MASS_PER_LITER = 0.0015
 LoadAssist.IGNORED_FILLTYPES = { "DIESEL", "DEF", "AIR", "ELECTRICCHARGE", "METHANE" } -- eigen tanks van de machine
-LoadAssist.DEFAULT_SOUND = "$data/sounds/ui/uiSuccess.ogg"
+LoadAssist.DEFAULT_SOUND  = "sounds/targetReached.wav"      -- de eigen pling, in deze mod
+LoadAssist.FALLBACK_SOUND = "$data/sounds/ui/uiSuccess.ogg" -- als een geluid niet laadt
+LoadAssist.SOUND_VOLUME   = 2
 
 LoadAssist.GREY  = { 0.564, 0.564, 0.564, 1 }
 LoadAssist.WHITE = { 1, 1, 1, 1 }
@@ -93,7 +96,7 @@ LoadAssist.TEXTS = {
     { key = "bucketWeight", desc = "gewicht in de bak", size = 0.015, fixed = true,
       get = function(spec) return string.format("%.2ft", spec.currentBucketTons), LoadAssist.GREY end },
     { key = "bucketAngle", desc = "bakhoek in graden", size = 0.01, fixed = true,
-      get = function(spec) return string.format("%.0f", spec.bucketAngleDeg), LoadAssist.GREY end },
+      get = function(spec) return string.format("%.0f", spec.bucketAngleDeg) .. LoadAssist.DEGREE, LoadAssist.GREY end },
     { key = "frontBack", desc = "helling voor/achter in %", size = 0.75,
       get = function(spec) return slopeText(spec.slopeFrontBack), LoadAssist.WHITE end },
     { key = "leftRight", desc = "helling links/rechts in %", size = 0.75,
@@ -138,14 +141,17 @@ LoadAssist.XML_PATHS = {
     { ".texts#fontSize",               "FLOAT",      "Tekstgrootte", 0.012 },
     { ".texts#fontThickness",          "FLOAT",      "Letterdikte (HANDELGOTHIC: minstens 1)", 1 },
     { ".texts#emissiveScale",          "FLOAT",      "Hoe sterk de 3D-letters oplichten (0 = niet)", LoadAssist.TEXT_EMISSIVE },
-    { ".sound#file",                   "STRING",     "Geluid als een doelgewicht gehaald is", LoadAssist.DEFAULT_SOUND },
-    { ".sound#volume",                 "FLOAT",      "Volume van dat geluid", 1 },
+    { ".sound#file",                   "STRING",     "Geluid als een doelgewicht gehaald is (zonder: de pling van LoadAssist)" },
+    { ".sound#volume",                 "FLOAT",      "Volume van dat geluid", LoadAssist.SOUND_VOLUME },
     { ".screen#overlay",               "BOOL",       "Scherm vanuit de cabine als lichtgevende laag tekenen", true },
     { ".screen#aspect",                "FLOAT",      "Breedte / hoogte van de schermafbeelding", LoadAssist.SCREEN_ASPECT },
     { ".screen#size",                  "STRING",     "Precieze maat van het scherm in meter: breedte hoogte" },
-    { ".screen#offset",                "STRING",     "Scherm verschuiven in meter: rechts omhoog" },
+    { ".screen#offset",                "STRING",     "Scherm verschuiven in meter: rechts omhoog (en naar de bestuurder)" },
     { ".screen#roll",                  "FLOAT",      "Scherm draaien in graden (+ = tegen de klok in)", 0 },
-    { ".screen#alignNode",             "NODE_INDEX", "Node op het scherm met X naar rechts, Y omhoog en Z naar de bestuurder" },
+    { ".screen#alignNode",             "NODE_INDEX", "Node op het scherm met Y omhoog langs het scherm en Z loodrecht erop" },
+    { ".screen#topLeftNode",           "NODE_INDEX", "Lege node op de hoek linksboven van het beeld" },
+    { ".screen#topRightNode",          "NODE_INDEX", "Lege node op de hoek rechtsboven van het beeld" },
+    { ".screen#bottomLeftNode",        "NODE_INDEX", "Lege node op de hoek linksonder van het beeld" },
     { ".screen#brightness",            "FLOAT",      "Helderheid van het scherm", 1 },
     { ".screen#mainImage",             "STRING",     "Afbeelding van het hoofdscherm (standaard die van mainScreenNode)" },
     { ".screen#bootImage",             "STRING",     "Afbeelding van het opstartscherm (standaard die van bootScreenNode)" },
@@ -270,10 +276,26 @@ function LoadAssist:onLoad(savegame)
     spec.useCustomFont = false
 
     -- Het scherm als lichtgevende laag (scripts/LoadAssistScreen.lua)
+    local function numbers(path, counts, what)
+        local str = value(path)
+        for _, count in ipairs(counts) do
+            local list = parseNumbers(str, count)
+            if list ~= nil then
+                return list
+            end
+        end
+        if str ~= nil and str ~= "" then
+            Logging.xmlWarning(xmlFile, "LoadAssist: <screen %s=\"%s\"> wordt niet gebruikt: verwacht %s.", string.sub(path, 9), str, what)
+        end
+        return nil
+    end
     spec.screen = {
         enabled = value(".screen#overlay", true), debug = value(".screen#debug", false),
-        aspect = value(".screen#aspect", LoadAssist.SCREEN_ASPECT), size = parseNumbers(value(".screen#size"), 2),
-        offset = parseNumbers(value(".screen#offset"), 2), roll = value(".screen#roll", 0), alignNode = node(".screen#alignNode"),
+        aspect = value(".screen#aspect", LoadAssist.SCREEN_ASPECT),
+        size = numbers(".screen#size", { 2 }, "twee getallen in meter (breedte hoogte)"),
+        offset = numbers(".screen#offset", { 2, 3 }, "twee of drie getallen in meter (rechts omhoog, en naar de bestuurder)"),
+        roll = value(".screen#roll", 0), alignNode = node(".screen#alignNode"),
+        corners = { node(".screen#topLeftNode"), node(".screen#topRightNode"), node(".screen#bottomLeftNode") },
         brightness = value(".screen#brightness", 1), miniBucketWindow = value(".screen#miniBucketWindow", 0.2),
         bars = { rows = value(".bars#pixelRows", 2), columns = value(".bars#pixelColumns", 0), frame = value(".bars#barFrame", true) },
         images = {}, nodeImages = {},
@@ -285,9 +307,14 @@ function LoadAssist:onLoad(savegame)
         end
     end
 
-    -- Geluid als een doel gehaald is
-    spec.soundFile    = Utils.getFilename(value(".sound#file", LoadAssist.DEFAULT_SOUND), self.baseDirectory)
-    spec.soundVolume  = value(".sound#volume", 1)
+    -- Geluid als een doel gehaald is: een bestand uit de voertuigmod, anders de pling van LoadAssist
+    local soundFile = value(".sound#file")
+    if soundFile ~= nil and soundFile ~= "" then
+        spec.soundFile = Utils.getFilename(soundFile, self.baseDirectory)
+    else
+        spec.soundFile = LoadAssist.MOD_DIR .. LoadAssist.DEFAULT_SOUND
+    end
+    spec.soundVolume  = value(".sound#volume", LoadAssist.SOUND_VOLUME)
     spec.soundEnabled = true
 
     spec.currentBucketTons, spec.peakBucketTons, spec.lowBucketTons, spec.inFlightTons = 0, 0, 0, 0
@@ -771,6 +798,8 @@ function LoadAssist.playSound(file, volume)
     end
     if sample then
         playSample(sample, 1, volume or 1, 0, 0, 0)
+    elseif file ~= LoadAssist.FALLBACK_SOUND then
+        LoadAssist.playSound(LoadAssist.FALLBACK_SOUND, volume) -- dan het geluid van het spel
     end
 end
 
