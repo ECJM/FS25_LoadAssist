@@ -45,7 +45,19 @@ LoadAssist.GREY  = { 0.564, 0.564, 0.564, 1 }
 LoadAssist.WHITE = { 1, 1, 1, 1 }
 LoadAssist.GREEN = { 0.184, 0.533, 0.238, 1 }
 
--- De twee tellers. defaultTarget = doelgewicht als de xml niets zegt, menuStep = stap van - en + in het menu (t),
+-- Tekst in de taal van het spel, uit de <l10n> van modDesc.xml (naam "loadAssist_<key>"). Het spel laadt de taal van
+-- het spel, en Engels als die taal er niet bij staat. Met extra waarden is de tekst een patroon voor string.format.
+function LoadAssist.getText(key, ...)
+    local name = "loadAssist_" .. key
+    local text = g_i18n ~= nil and g_i18n:getText(name) or name
+    if select("#", ...) > 0 then
+        return string.format(text, ...)
+    end
+    return text
+end
+
+-- De twee tellers. title = Nederlandse naam voor de beschrijving van de XML (in het spel: loadAssist_<name>),
+-- defaultTarget = doelgewicht als de xml niets zegt, menuStep = stap van - en + in het menu (t),
 -- barArea = binnenkant van de balk op de schermafbeelding (links boven rechts onder, linksboven = 0 0); zonder barArea
 -- ligt de balk als die van Vrachtwagen, verschoven zoals de teksten van de teller
 LoadAssist.MODES = {
@@ -117,7 +129,7 @@ for _, def in ipairs(LoadAssist.MODES) do
     table.insert(LoadAssist.TEXTS, { key = name .. "Target", desc = "doelgewicht " .. def.title, size = 0.85,
         get = function(spec)
             local m = spec.modes[name]
-            return m.enabled and string.format("-%.1ft", m.target) or "UIT", LoadAssist.WHITE
+            return m.enabled and string.format("-%.1ft", m.target) or LoadAssist.getText("off"), LoadAssist.WHITE
         end })
 end
 
@@ -255,7 +267,7 @@ function LoadAssist:onLoad(savegame)
     spec.modes, spec.modeList, spec.selectedMode = {}, {}, 1
     for i, def in ipairs(LoadAssist.MODES) do
         local m = {
-            index = i, name = def.name, title = def.title, menuStep = def.menuStep,
+            index = i, name = def.name, title = LoadAssist.getText(def.name), menuStep = def.menuStep,
             barNode = node(".bars#" .. def.name .. "BarNode"), groupNode = node(".bars#" .. def.name .. "GroupNode"),
             barArea = parseNumbers(value(".bars#" .. def.name .. "BarArea", def.barArea), 4),
             target = math.clamp(value(".bars#" .. def.name .. "Target", def.defaultTarget), LoadAssist.TARGET_MIN, LoadAssist.TARGET_MAX),
@@ -881,7 +893,7 @@ function LoadAssist.announceTarget(self, m)
     end
     if g_currentMission ~= nil and g_currentMission.addIngameNotification ~= nil then
         g_currentMission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_OK,
-            string.format("Load Assist: %s doel gehaald (%.1f t)", m.title, m.loaded))
+            LoadAssist.getText("notifyTargetReached", m.title, m.loaded))
     end
 end
 
@@ -1010,12 +1022,12 @@ function LoadAssist.updateActionTexts(self)
     local spec = self.spec_loadAssist
     local m = spec.modeList[spec.selectedMode]
     local texts = {
-        LOAD_ASSIST_MENU   = "Load Assist: Doelgewicht instellen",
-        LOAD_ASSIST_SELECT = string.format("Load Assist: Geselecteerd [%s]", m.title),
-        LOAD_ASSIST_TOGGLE = string.format("Load Assist: %s [%s]", m.title, m.enabled and "AAN" or "UIT"),
-        LOAD_ASSIST_ADD    = string.format("Load Assist: %s doel +%.1ft", m.title, LoadAssist.KEY_STEP),
-        LOAD_ASSIST_REMOVE = string.format("Load Assist: %s doel -%.1ft", m.title, LoadAssist.KEY_STEP),
-        LOAD_ASSIST_RESET  = string.format("Load Assist: Reset %s (0.0t)", m.title),
+        LOAD_ASSIST_MENU   = LoadAssist.getText("helpMenu"),
+        LOAD_ASSIST_SELECT = LoadAssist.getText("helpSelect", m.title),
+        LOAD_ASSIST_TOGGLE = LoadAssist.getText("helpToggle", m.title, LoadAssist.getText(m.enabled and "on" or "off")),
+        LOAD_ASSIST_ADD    = LoadAssist.getText("helpAdd", m.title, LoadAssist.KEY_STEP),
+        LOAD_ASSIST_REMOVE = LoadAssist.getText("helpRemove", m.title, LoadAssist.KEY_STEP),
+        LOAD_ASSIST_RESET  = LoadAssist.getText("helpReset", m.title),
     }
     for action, id in pairs(spec.actionEventIds) do
         g_inputBinding:setActionEventText(id, texts[action])

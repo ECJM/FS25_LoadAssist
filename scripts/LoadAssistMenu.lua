@@ -86,9 +86,9 @@ function Menu.open(vehicle)
             g_inputBinding:setActionEventTextVisibility(id, true)
         end
     end
-    register(InputAction.MENU_BACK, Menu.onBack, "Sluiten")
-    register(InputAction.MENU_ACCEPT, Menu.onAccept, "Toepassen")
-    register(InputAction.LOAD_ASSIST_MENU, Menu.onMenuKey, "Load Assist: Menu sluiten")
+    register(InputAction.MENU_BACK, Menu.onBack, LoadAssist.getText("helpClose"))
+    register(InputAction.MENU_ACCEPT, Menu.onAccept, LoadAssist.getText("helpApply"))
+    register(InputAction.LOAD_ASSIST_MENU, Menu.onMenuKey, LoadAssist.getText("helpCloseMenu"))
     g_inputBinding:setShowMouseCursor(true)
 
     if g_depthOfFieldManager ~= nil then
@@ -399,7 +399,8 @@ function Menu:draw()
 
     -- Kop
     local titleWidth = label("LOAD ASSIST", Menu.PAD, 54, 22, Menu.WHITE, 1, "left", 2.0)
-    Menu.text("DOELGEWICHT INSTELLEN", px + Menu.PAD * s + titleWidth + 16 * s, top - 54 * s, 11 * s, Menu.WHITE, 0.55, "left", 1.5)
+    Menu.text(LoadAssist.getText("menuSubtitle"), px + Menu.PAD * s + titleWidth + 16 * s, top - 54 * s, 11 * s, Menu.WHITE, 0.55,
+        "left", 1.5)
     Menu.roundButton("close", nil, "close", box(Menu.PANEL_W - Menu.PAD - 36, 25, 36, 36))
     local lx, ly, lw, lh = box(Menu.PAD, 70, Menu.PANEL_W - 2 * Menu.PAD, 1)
     Menu.nine("fill", lx, ly, lw, math.max(lh, 1), 0, Menu.WHITE, 0.10)
@@ -413,12 +414,14 @@ function Menu:draw()
     -- Onderste regel: geluid aan/uit, testknop en uitleg
     local cy = top - Menu.FOOTER_Y * s
     Menu.icon("bell", px + (Menu.PAD + 11) * s, cy, 22 * s, Menu.WHITE, spec.soundEnabled and 0.9 or 0.4)
-    local textWidth = Menu.text("GELUID BIJ DOEL", px + (Menu.PAD + 30) * s, cy - 5.5 * s, 11 * s, Menu.WHITE, 0.85, "left", 1.5)
+    local textWidth = Menu.text(LoadAssist.getText("menuSound"), px + (Menu.PAD + 30) * s, cy - 5.5 * s, 11 * s, Menu.WHITE, 0.85,
+        "left", 1.5)
     local sx = px + (Menu.PAD + 30 + 14) * s + textWidth
     Menu.switch("sound", nil, spec.soundEnabled, sx, cy - 13 * s, 46 * s, 26 * s)
-    Menu.pillButton("test", nil, "TEST", { cap = 9.5 * s }, sx + 58 * s, cy - 14 * s, 72 * s, 28 * s)
-    Menu.text("Klik op het doel om te typen   Shift: grote stap   Esc: sluiten", px + (Menu.PANEL_W - Menu.PAD) * s, cy - 5 * s,
-        10 * s, Menu.WHITE, 0.45, "right", 1.5)
+    Menu.pillButton("test", nil, LoadAssist.getText("menuTest"), { cap = 9.5 * s }, sx + 58 * s, cy - 14 * s, 72 * s, 28 * s)
+    local hint = table.concat({ LoadAssist.getText("menuHintType"), LoadAssist.getText("menuHintShift"),
+        LoadAssist.getText("menuHintEsc") }, "   ")
+    Menu.text(hint, px + (Menu.PANEL_W - Menu.PAD) * s, cy - 5 * s, 10 * s, Menu.WHITE, 0.45, "right", 1.5)
 end
 
 function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
@@ -442,11 +445,20 @@ function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
     local loaded = LoadAssist.getShownLoaded(spec, m)
     local pct = math.min(loaded / m.target, 1)
     local valueWidth = label(string.format("%.1f", loaded), cx + 20, cy + 98, 32, Menu.WHITE, dim, "left", 2.0)
-    label("t", cx + 20 + valueWidth / s + 7, cy + 98, 15, Menu.WHITE, 0.6 * dim, "left", 1.5)
+    local unitWidth = label("t", cx + 20 + valueWidth / s + 7, cy + 98, 15, Menu.WHITE, 0.6 * dim, "left", 1.5)
     if not m.enabled then
-        label("UIT", cx + cw - 20, cy + 98, 16, Menu.WHITE, 0.45, "right", 2.0)
+        label(LoadAssist.getText("off"), cx + cw - 20, cy + 98, 16, Menu.WHITE, 0.45, "right", 2.0)
     elseif m.targetReached then
-        local width = label("DOEL GEHAALD", cx + cw - 20, cy + 96, 12, Menu.GREEN, 1, "right", 2.0)
+        -- Rechts van het gewicht, met het vinkje ervoor (24 eenheden). Past het niet, bij een lange vertaling of een groot
+        -- gewicht, dan worden de letters kleiner; midden op het vinkje
+        local text = LoadAssist.getText("menuTargetReached")
+        local room = cw - 20 - 24 - 10 - (20 + (valueWidth + unitWidth) / s + 7)
+        local cap = 12
+        local natural = Menu.textWidth(text, cap * s) / s
+        if natural > room then
+            cap = math.max(cap * room / natural, 6)
+        end
+        local width = label(text, cx + cw - 20, cy + 90 + cap / 2, cap, Menu.GREEN, 1, "right", 2.0)
         local rx, ry = cbox(cw - 20, 90, 0, 0)
         Menu.icon("check", rx - width - 14 * s, ry, 20 * s, Menu.GREEN, 1)
     else
@@ -465,8 +477,8 @@ function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
     end
 
     -- Doelgewicht: -  [ 25.0 t ]  +       RESET
-    label("DOELGEWICHT", cx + 20, cy + 142, 9, Menu.WHITE, 0.5, "left", 1.5)
-    label(string.format("STAP %g t", m.menuStep), cx + cw - 20, cy + 142, 9, Menu.WHITE, 0.4, "right", 1.5)
+    label(LoadAssist.getText("menuTargetWeight"), cx + 20, cy + 142, 9, Menu.WHITE, 0.5, "left", 1.5)
+    label(LoadAssist.getText("menuStep", m.menuStep), cx + cw - 20, cy + 142, 9, Menu.WHITE, 0.4, "right", 1.5)
     Menu.roundButton("minus", i, "minus", cbox(20, 152, 40, 40))
     Menu.roundButton("plus", i, "plus", cbox(216, 152, 40, 40))
 
@@ -488,7 +500,8 @@ function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
     Menu.text("t", left + vw + caretGap + 6 * s, baseY, unitCap, Menu.WHITE, 0.6 * dim, "left", 1.5)
     Menu.addHit(fx, fy, fw, fh, { kind = "field", index = i })
 
-    Menu.pillButton("reset", i, "RESET", { icon = "reset", hover = Menu.RED, cap = 11 * s }, cbox(cw - 20 - 112, 152, 112, 40))
+    Menu.pillButton("reset", i, LoadAssist.getText("menuReset"), { icon = "reset", hover = Menu.RED, cap = 11 * s },
+        cbox(cw - 20 - 112, 152, 112, 40))
 end
 
 -- =====================================================================================================================

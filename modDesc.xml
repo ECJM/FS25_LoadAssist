@@ -14,13 +14,15 @@
 - Bucket weight, bucket angle and slope on the cab screen
 - Two counters, Truck and Job, each with a progress bar and a target weight
 - Ctrl + R opens a menu to set the target weights, reset the counters and switch the target sound on or off
-- A sound plays when a counter reaches its target weight]]></en>
+- A sound plays when a counter reaches its target weight
+- Texts in English and Dutch, in the language of the game]]></en>
         <nl><![CDATA[Volvo Co-Pilot Load Assist: weegsysteem voor wielladers en graafmachines.
 
 - Gewicht in de bak, bakhoek en helling op het scherm in de cabine
 - Twee tellers, Vrachtwagen en Opdracht, elk met een voortgangsbalk en een doelgewicht
 - Ctrl + R opent een menu om de doelgewichten in te stellen, de tellers te resetten en het geluid aan of uit te zetten
-- Je hoort een geluid als een teller zijn doelgewicht haalt]]></nl>
+- Je hoort een geluid als een teller zijn doelgewicht haalt
+- Teksten in het Nederlands en Engels, in de taal van het spel]]></nl>
     </description>
 
     <iconFilename>icon.dds</iconFilename>
@@ -90,6 +92,107 @@
         <text name="input_LOAD_ASSIST_TOGGLE">
             <en>Load Assist: Toggle Truck / Job ON/OFF</en>
             <nl>Load Assist: Zet Vrachtwagen / Opdracht Aan/Uit</nl>
+        </text>
+
+        <!-- Teksten in het spel. Het spel kiest de taal van het spel, en Engels als die taal hier niet bij staat.
+             Het menu en het scherm tekenen met HANDELGOTHIC, dat alleen deze tekens heeft: 0-9 A-Z a-z spatie
+             - , . : ! ? % & # + / en het gradenteken. De F1-hulp (help) en de melding (notify) gebruiken de letters
+             van het spel. %s, %g en %.1f worden ingevuld door het script. -->
+        <text name="loadAssist_truck">
+            <en>Truck</en>
+            <nl>Vrachtwagen</nl>
+        </text>
+        <text name="loadAssist_job">
+            <en>Job</en>
+            <nl>Opdracht</nl>
+        </text>
+        <text name="loadAssist_on">
+            <en>ON</en>
+            <nl>AAN</nl>
+        </text>
+        <text name="loadAssist_off">
+            <en>OFF</en>
+            <nl>UIT</nl>
+        </text>
+        <text name="loadAssist_notifyTargetReached">
+            <en>Load Assist: %s target reached (%.1f t)</en>
+            <nl>Load Assist: %s doel gehaald (%.1f t)</nl>
+        </text>
+        <text name="loadAssist_helpMenu">
+            <en>Load Assist: Set target weights</en>
+            <nl>Load Assist: Doelgewicht instellen</nl>
+        </text>
+        <text name="loadAssist_helpSelect">
+            <en>Load Assist: Selected [%s]</en>
+            <nl>Load Assist: Geselecteerd [%s]</nl>
+        </text>
+        <text name="loadAssist_helpToggle">
+            <en>Load Assist: %s [%s]</en>
+            <nl>Load Assist: %s [%s]</nl>
+        </text>
+        <text name="loadAssist_helpAdd">
+            <en>Load Assist: %s target +%.1ft</en>
+            <nl>Load Assist: %s doel +%.1ft</nl>
+        </text>
+        <text name="loadAssist_helpRemove">
+            <en>Load Assist: %s target -%.1ft</en>
+            <nl>Load Assist: %s doel -%.1ft</nl>
+        </text>
+        <text name="loadAssist_helpReset">
+            <en>Load Assist: Reset %s (0.0t)</en>
+            <nl>Load Assist: Reset %s (0.0t)</nl>
+        </text>
+        <text name="loadAssist_helpClose">
+            <en>Close</en>
+            <nl>Sluiten</nl>
+        </text>
+        <text name="loadAssist_helpApply">
+            <en>Apply</en>
+            <nl>Toepassen</nl>
+        </text>
+        <text name="loadAssist_helpCloseMenu">
+            <en>Load Assist: Close menu</en>
+            <nl>Load Assist: Menu sluiten</nl>
+        </text>
+        <text name="loadAssist_menuSubtitle">
+            <en>SET TARGET WEIGHTS</en>
+            <nl>DOELGEWICHT INSTELLEN</nl>
+        </text>
+        <text name="loadAssist_menuTargetReached">
+            <en>TARGET REACHED</en>
+            <nl>DOEL GEHAALD</nl>
+        </text>
+        <text name="loadAssist_menuTargetWeight">
+            <en>TARGET WEIGHT</en>
+            <nl>DOELGEWICHT</nl>
+        </text>
+        <text name="loadAssist_menuStep">
+            <en>STEP %g t</en>
+            <nl>STAP %g t</nl>
+        </text>
+        <text name="loadAssist_menuReset">
+            <en>RESET</en>
+            <nl>RESET</nl>
+        </text>
+        <text name="loadAssist_menuSound">
+            <en>SOUND AT TARGET</en>
+            <nl>GELUID BIJ DOEL</nl>
+        </text>
+        <text name="loadAssist_menuTest">
+            <en>TEST</en>
+            <nl>TEST</nl>
+        </text>
+        <text name="loadAssist_menuHintType">
+            <en>Click the target to type</en>
+            <nl>Klik op het doel om te typen</nl>
+        </text>
+        <text name="loadAssist_menuHintShift">
+            <en>Shift: big step</en>
+            <nl>Shift: grote stap</nl>
+        </text>
+        <text name="loadAssist_menuHintEsc">
+            <en>Esc: close</en>
+            <nl>Esc: sluiten</nl>
         </text>
     </l10n>
 </modDesc>
