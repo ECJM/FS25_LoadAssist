@@ -441,28 +441,42 @@ function Menu.drawCard(st, spec, m, i, cx, cy, cw, ch, s, box, label)
     label(string.upper(m.title), cx + 54, cy + 38.5, 13, Menu.WHITE, 0.95 * dim, "left", 2.0)
     Menu.switch("toggle", i, m.enabled, cbox(cw - 20 - 50, 18, 50, 28))
 
-    -- Geladen gewicht (ook wat nu uit de bak gaat) en voortgang
+    -- Geladen gewicht (ook wat nu uit de bak gaat) en voortgang. Rechts staat UIT, het percentage, of "doel gehaald" met het
+    -- vinkje ervoor (24 eenheden), minstens 10 eenheden na de t. Past "doel gehaald" niet (lange vertaling of groot
+    -- gewicht), dan worden die letters kleiner, tot 6. Past het dan nog niet (vanaf 10000 t), dan wordt het gewicht kleiner.
     local loaded = LoadAssist.getShownLoaded(spec, m)
     local pct = math.min(loaded / m.target, 1)
-    local valueWidth = label(string.format("%.1f", loaded), cx + 20, cy + 98, 32, Menu.WHITE, dim, "left", 2.0)
-    local unitWidth = label("t", cx + 20 + valueWidth / s + 7, cy + 98, 15, Menu.WHITE, 0.6 * dim, "left", 1.5)
+    local valueText, valueCap = string.format("%.1f", loaded), 32
+    local rightText, rightCap, minCap, tick
     if not m.enabled then
-        label(LoadAssist.getText("off"), cx + cw - 20, cy + 98, 16, Menu.WHITE, 0.45, "right", 2.0)
+        rightText, rightCap, minCap, tick = LoadAssist.getText("off"), 16, 16, 0
     elseif m.targetReached then
-        -- Rechts van het gewicht, met het vinkje ervoor (24 eenheden). Past het niet, bij een lange vertaling of een groot
-        -- gewicht, dan worden de letters kleiner; midden op het vinkje
-        local text = LoadAssist.getText("menuTargetReached")
-        local room = cw - 20 - 24 - 10 - (20 + (valueWidth + unitWidth) / s + 7)
-        local cap = 12
-        local natural = Menu.textWidth(text, cap * s) / s
-        if natural > room then
-            cap = math.max(cap * room / natural, 6)
+        rightText, rightCap, minCap, tick = LoadAssist.getText("menuTargetReached"), 12, 6, 24
+    else
+        rightText, rightCap, minCap, tick = string.format("%d%%", math.floor(pct * 100)), 18, 18, 0
+    end
+    local valueW = Menu.textWidth(valueText, valueCap * s) / s
+    local room = cw - 20 - tick - 10 - (20 + valueW + 7 + Menu.textWidth("t", 15 * s) / s)
+    local natural = Menu.textWidth(rightText, rightCap * s) / s
+    if natural > room then
+        local cap = math.max(rightCap * room / natural, minCap)
+        local short = natural * cap / rightCap - room -- zoveel moet het gewicht nog smaller (afronding telt niet)
+        if short > 0.01 then
+            valueCap = valueCap * (valueW - short) / valueW
         end
-        local width = label(text, cx + cw - 20, cy + 90 + cap / 2, cap, Menu.GREEN, 1, "right", 2.0)
+        rightCap = cap
+    end
+    local valueWidth = label(valueText, cx + 20, cy + 98, valueCap, Menu.WHITE, dim, "left", 2.0)
+    label("t", cx + 20 + valueWidth / s + 7, cy + 98, 15, Menu.WHITE, 0.6 * dim, "left", 1.5)
+    if not m.enabled then
+        label(rightText, cx + cw - 20, cy + 98, rightCap, Menu.WHITE, 0.45, "right", 2.0)
+    elseif m.targetReached then
+        -- midden op het vinkje
+        local width = label(rightText, cx + cw - 20, cy + 90 + rightCap / 2, rightCap, Menu.GREEN, 1, "right", 2.0)
         local rx, ry = cbox(cw - 20, 90, 0, 0)
         Menu.icon("check", rx - width - 14 * s, ry, 20 * s, Menu.GREEN, 1)
     else
-        label(string.format("%d%%", math.floor(pct * 100)), cx + cw - 20, cy + 98, 18, Menu.WHITE, 0.8, "right", 1.5)
+        label(rightText, cx + cw - 20, cy + 98, rightCap, Menu.WHITE, 0.8, "right", 1.5)
     end
 
     local bx, by, bw, bh = cbox(20, 112, cw - 40, 8)
