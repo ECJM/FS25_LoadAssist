@@ -33,6 +33,7 @@
     <extraSourceFiles>
         <sourceFile filename="scripts/LoadAssistScreen.lua" />
         <sourceFile filename="scripts/LoadAssistMenu.lua" />
+        <sourceFile filename="scripts/LoadAssistEvent.lua" />
     </extraSourceFiles>
 
     <actions>

@@ -720,6 +720,7 @@ function laText(nl, en) { return document.documentElement.lang === 'en' ? en : n
   &lt;loadAssist truckTarget="25" truckLoaded="19.7" truckEnabled="true"
               jobTarget="150" jobLoaded="96" jobEnabled="true" sound="true" /&gt;
 &lt;/FS25_0_LoadAssist&gt;</pre></div>
+  <p>In multiplayer bewaart de server de waarden. Hij telt de ladingen zelf en stuurt de tellers naar alle spelers. Wat een speler met de toetsen of in het menu verandert, gaat via de server naar de anderen, en wie later meedoet, krijgt meteen de waarden van de server. Zo staat ook op een dedicated server in de savegame wat er echt is ingesteld en geladen.</p>
 </section>
 
 <!-- ======================= VOORBEELD ======================= -->
@@ -777,7 +778,7 @@ function laText(nl, en) { return document.documentElement.lang === 'en' ? en : n
       <tr><td>De bakhoek klopt niet</td><td>De stand bij het laden van het voertuig is 0 graden. Zet de vlakke stand op 0 met <code class="i">angleOffset</code>. Draait hij de verkeerde kant op, gebruik <code class="i">miniBucketInvert</code>.</td></tr>
       <tr><td>De teksten staan in een ander lettertype</td><td>Kijk in de log naar <em>lettertype '&hellip;' niet gevonden</em> en controleer <code class="i">fontName</code>.</td></tr>
       <tr><td>Geen geluid bij het doel</td><td>Staat <em>Geluid bij doel</em> aan in het menu? Probeer de knop TEST. Het geluid speelt alleen als je zelf in de machine zit, en het volgt het volume van de interface in het spel. Staat er in <code class="i">log.txt</code> dat het geluid niet geladen kon worden, kijk dan het pad in <code class="i">&lt;sound file&gt;</code> na.</td></tr>
-      <tr><td>Multiplayer</td><td>Elke speler houdt zijn eigen tellers bij; ze worden niet gedeeld. In de savegame komt alleen wat de host heeft ingesteld. Op een dedicated server blijven de opgeslagen waarden zoals ze waren.</td></tr>
+      <tr><td>Multiplayer</td><td>Iedereen ziet dezelfde doelgewichten en tellers: de server telt, stuurt de tellers naar de spelers en bewaart ze in de savegame, ook op een dedicated server. Het geluid en de melding krijgt alleen wie in de machine zit.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -1249,6 +1250,7 @@ function laText(nl, en) { return document.documentElement.lang === 'en' ? en : n
   &lt;loadAssist truckTarget="25" truckLoaded="19.7" truckEnabled="true"
               jobTarget="150" jobLoaded="96" jobEnabled="true" sound="true" /&gt;
 &lt;/FS25_0_LoadAssist&gt;</pre></div>
+  <p>In multiplayer the server keeps the values. It counts the loads itself and sends the counters to all players. What a player changes with the keys or in the menu goes through the server to the others, and anyone who joins later gets the server's values right away. So on a dedicated server too, the savegame holds what was really set and loaded.</p>
 </section>
 
 <!-- ======================= FULL EXAMPLE ======================= -->
@@ -1306,7 +1308,7 @@ function laText(nl, en) { return document.documentElement.lang === 'en' ? en : n
       <tr><td>The bucket angle is wrong</td><td>The position when the vehicle loads is 0 degrees. Put the level position at 0 with <code class="i">angleOffset</code>. If it turns the wrong way, use <code class="i">miniBucketInvert</code>.</td></tr>
       <tr><td>The texts are in a different font</td><td>Look in the log for <em>lettertype '&hellip;' niet gevonden</em> (font not found) and check <code class="i">fontName</code>.</td></tr>
       <tr><td>No sound at the target</td><td>Is <em>Geluid bij doel</em> (sound at target) on in the menu? Try the TEST button. The sound only plays when you sit in the machine yourself, and it follows the game's interface volume. If <code class="i">log.txt</code> says the sound could not be loaded, check the path in <code class="i">&lt;sound file&gt;</code>.</td></tr>
-      <tr><td>Multiplayer</td><td>Every player keeps their own counters; they are not shared. Only what the host has set goes into the savegame. On a dedicated server the saved values stay as they were.</td></tr>
+      <tr><td>Multiplayer</td><td>Everyone sees the same target weights and counters: the server counts, sends the counters to the players and keeps them in the savegame, also on a dedicated server. Only the player in the machine gets the sound and the notification.</td></tr>
     </tbody>
   </table></div>
 </section>

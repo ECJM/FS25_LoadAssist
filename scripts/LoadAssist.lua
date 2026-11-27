@@ -7,6 +7,10 @@
 -- Vanuit de cabine wordt het scherm als lichtgevende laag getekend (scripts/LoadAssistScreen.lua), met balken van losse
 -- pixels. Met Ctrl + R opent een menu (scripts/LoadAssistMenu.lua) om de doelgewichten in te stellen en te resetten.
 --
+-- Multiplayer: de server telt de ladingen en stuurt de tellers naar de spelers (update-stream). Wat een speler instelt,
+-- gaat met LoadAssistEvent (scripts/LoadAssistEvent.lua) via de server naar de anderen. Wie later meedoet, krijgt
+-- alles in onReadStream. De server bewaart dus ook op een dedicated server de goede waarden in de savegame.
+--
 -- Alle XML-attributen staan in docs/LoadAssist-documentatie.html.
 -- =====================================================================================================================
 
@@ -35,6 +39,7 @@ LoadAssist.IGNORED_FILLTYPES = { "DIESEL", "DEF", "AIR", "ELECTRICCHARGE", "METH
 LoadAssist.DEFAULT_SOUND  = "sounds/targetReached.wav"      -- de eigen pling, in deze mod
 LoadAssist.FALLBACK_SOUND = "$data/sounds/ui/uiSuccess.ogg" -- als een geluid niet laadt
 LoadAssist.SOUND_VOLUME   = 2
+LoadAssist.LOAD_COUNT_BITS = 8 -- geteld aantal ladingen in de update-stream (loopt rond bij 256)
 
 LoadAssist.GREY  = { 0.564, 0.564, 0.564, 1 }
 LoadAssist.WHITE = { 1, 1, 1, 1 }
@@ -204,7 +209,8 @@ function LoadAssist.registerFunctions(vehicleType)
 end
 
 function LoadAssist.registerEventListeners(vehicleType)
-    for _, name in ipairs({ "onLoad", "onDelete", "onUpdate", "onDraw", "onStartMotor", "onStopMotor", "onLeaveVehicle", "onRegisterActionEvents" }) do
+    for _, name in ipairs({ "onLoad", "onDelete", "onUpdate", "onDraw", "onStartMotor", "onStopMotor", "onLeaveVehicle", "onRegisterActionEvents",
+                            "onReadStream", "onWriteStream", "onReadUpdateStream", "onWriteUpdateStream" }) do
         SpecializationUtil.registerEventListener(vehicleType, name, LoadAssist)
     end
 end
@@ -319,6 +325,8 @@ function LoadAssist:onLoad(savegame)
 
     spec.currentBucketTons, spec.peakBucketTons, spec.lowBucketTons, spec.inFlightTons = 0, 0, 0, 0
     spec.bucketAngleDeg, spec.slopeFrontBack, spec.slopeLeftRight = 0, 0, 0
+    spec.loadCount = 0                       -- ladingen die de server telde, zodat een speler weet wanneer hij het geluid geeft
+    spec.dirtyFlag = self:getNextDirtyFlag() -- de tellers van de server zijn veranderd
 
     if savegame ~= nil and not savegame.resetVehicles then
         local key = savegame.key .. "." .. LoadAssist.MOD_NAME .. ".loadAssist"
@@ -356,6 +364,89 @@ function LoadAssist:saveToXMLFile(xmlFile, key)
         xmlFile:setValue(key .. "#" .. m.name .. "Enabled", m.enabled)
     end
     xmlFile:setValue(key .. "#sound", spec.soundEnabled)
+end
+
+-- =====================================================================================================================
+-- MULTIPLAYER: wie meedoet, krijgt de instellingen en de tellers van de server (onWriteStream / onReadStream). Daarna
+-- stuurt de server zijn tellers mee in de update-stream zodra er iets verandert; instellingen gaan met LoadAssistEvent.
+-- Gewichten gaan als hele kilo's over het netwerk.
+-- =====================================================================================================================
+function LoadAssist.roundTons(tons)
+    return math.floor(tons * 1000 + 0.5) / 1000
+end
+
+function LoadAssist.writeTons(streamId, tons)
+    streamWriteInt32(streamId, math.clamp(math.floor(tons * 1000 + 0.5), -2147483647, 2147483647))
+end
+
+function LoadAssist.readTons(streamId)
+    return streamReadInt32(streamId) / 1000
+end
+
+function LoadAssist.raiseTotalsDirty(self)
+    if self.isServer then
+        self:raiseDirtyFlags(self.spec_loadAssist.dirtyFlag)
+    end
+end
+
+-- Tellers van de server: geladen per teller, wat nu uit de bak gaat en hoeveel ladingen er geteld zijn
+function LoadAssist.writeTotals(self, streamId)
+    local spec = self.spec_loadAssist
+    for _, m in ipairs(spec.modeList) do
+        LoadAssist.writeTons(streamId, m.loaded)
+    end
+    LoadAssist.writeTons(streamId, spec.inFlightTons)
+    streamWriteUIntN(streamId, spec.loadCount, LoadAssist.LOAD_COUNT_BITS)
+end
+
+-- Geeft true als de server sinds de vorige keer een lading heeft geteld
+function LoadAssist.readTotals(self, streamId)
+    local spec = self.spec_loadAssist
+    for _, m in ipairs(spec.modeList) do
+        m.loaded = math.max(LoadAssist.readTons(streamId), 0)
+    end
+    spec.inFlightTons = math.max(LoadAssist.readTons(streamId), 0)
+    local loadCount = streamReadUIntN(streamId, LoadAssist.LOAD_COUNT_BITS)
+    local counted = loadCount ~= spec.loadCount
+    spec.loadCount = loadCount
+    return counted
+end
+
+function LoadAssist:onWriteStream(streamId, connection)
+    local spec = self.spec_loadAssist
+    for _, m in ipairs(spec.modeList) do
+        LoadAssist.writeTons(streamId, m.target)
+        streamWriteBool(streamId, m.enabled)
+    end
+    streamWriteBool(streamId, spec.soundEnabled)
+    LoadAssist.writeTotals(self, streamId)
+end
+
+function LoadAssist:onReadStream(streamId, connection)
+    local spec = self.spec_loadAssist
+    for _, m in ipairs(spec.modeList) do
+        m.target = math.clamp(LoadAssist.readTons(streamId), LoadAssist.TARGET_MIN, LoadAssist.TARGET_MAX)
+        m.enabled = streamReadBool(streamId)
+    end
+    spec.soundEnabled = streamReadBool(streamId)
+    LoadAssist.readTotals(self, streamId)
+    LoadAssist.refresh(self) -- doel gehaald of niet, zonder geluid
+end
+
+function LoadAssist:onWriteUpdateStream(streamId, connection, dirtyMask)
+    if not connection:getIsServer() then
+        local spec = self.spec_loadAssist
+        if streamWriteBool(streamId, bitAND(dirtyMask, spec.dirtyFlag) ~= 0) then
+            LoadAssist.writeTotals(self, streamId)
+        end
+    end
+end
+
+function LoadAssist:onReadUpdateStream(streamId, timestamp, connection)
+    if connection:getIsServer() and streamReadBool(streamId) then
+        -- het geluid alleen als de server net een lading telde, niet na een reset of een ander doel
+        LoadAssist.checkTargets(self, LoadAssist.readTotals(self, streamId))
+    end
 end
 
 -- =====================================================================================================================
@@ -537,16 +628,20 @@ function LoadAssist:onLeaveVehicle()
 end
 
 function LoadAssist:onUpdate(dt)
+    local spec = self.spec_loadAssist
+    local motorOn = self:getIsMotorStarted()
+    -- Tellen doet de server (in singleplayer is dat het spel zelf), zolang de motor draait
+    if self.isServer and motorOn then
+        LoadAssist.updateBucketWeightAndTotals(self)
+    end
     if not self.isClient then
         return
     end
-    local spec = self.spec_loadAssist
     if spec.fontPending then
         LoadAssist.setupFontLines(self, dt)
     end
     spec.screenTime = spec.screenTime + dt
 
-    local motorOn = self:getIsMotorStarted()
     if spec.screenState == "off" then
         if not motorOn then
             return
@@ -566,7 +661,9 @@ function LoadAssist:onUpdate(dt)
 
     LoadAssist.updateSlope(self)
     LoadAssist.updateBucketAngle(self)
-    LoadAssist.updateBucketWeightAndTotals(self)
+    if not self.isServer then
+        spec.currentBucketTons = LoadAssist.getCurrentBucketMassTons(self) -- een speler toont het gewicht, de tellers komen van de server
+    end
     LoadAssist.updateBarValues(self, dt)
     LoadAssist.updateProgressBars(self)
     LoadAssist.updateTexts(self)
@@ -707,6 +804,7 @@ end
 -- verschil is al gelost en staat als "onderweg" (inFlightTons) meteen op het scherm, zodat de balken meelopen.
 --   * bak leeg: de hele lading (peak) telt
 --   * gedeeltelijk gelost en weer bijgeschept: het geloste deel telt, daarna begint een nieuwe lading
+-- Alleen op de server; de spelers krijgen de tellers en "onderweg" van de server.
 function LoadAssist.updateBucketWeightAndTotals(self)
     local spec = self.spec_loadAssist
     local tons = LoadAssist.getCurrentBucketMassTons(self)
@@ -726,15 +824,22 @@ function LoadAssist.updateBucketWeightAndTotals(self)
         spec.lowBucketTons = tons
     end
     dumped = spec.peakBucketTons - spec.lowBucketTons
-    spec.inFlightTons = dumped >= LoadAssist.MIN_LOAD_TONS and dumped or 0
+    local inFlight = dumped >= LoadAssist.MIN_LOAD_TONS and dumped or 0
+    if inFlight ~= spec.inFlightTons then
+        spec.inFlightTons = inFlight
+        LoadAssist.raiseTotalsDirty(self)
+    end
 end
 
 function LoadAssist.addLoad(self, tons)
-    for _, m in ipairs(self.spec_loadAssist.modeList) do
+    local spec = self.spec_loadAssist
+    for _, m in ipairs(spec.modeList) do
         if m.enabled then
             m.loaded = m.loaded + tons
         end
     end
+    spec.loadCount = (spec.loadCount + 1) % 2 ^ LoadAssist.LOAD_COUNT_BITS
+    LoadAssist.raiseTotalsDirty(self)
     LoadAssist.checkTargets(self, true)
 end
 
@@ -817,26 +922,44 @@ function LoadAssist.onMapUnloaded()
 end
 
 -- =====================================================================================================================
--- INSTELLEN (toetsen en menu gebruiken dezelfde functies)
+-- INSTELLEN (toetsen en menu gebruiken dezelfde functies). Elke functie stuurt LoadAssistEvent naar de server en de
+-- andere spelers; noEventSend = true als het event zelf de functie aanroept.
 -- =====================================================================================================================
-function LoadAssist:setLoadAssistTarget(index, tons)
+function LoadAssist:setLoadAssistTarget(index, tons, noEventSend)
     local m = self.spec_loadAssist.modeList[index]
-    m.target = math.clamp(tons, LoadAssist.TARGET_MIN, LoadAssist.TARGET_MAX)
+    if m == nil or type(tons) ~= "number" then
+        return
+    end
+    m.target = LoadAssist.roundTons(math.clamp(tons, LoadAssist.TARGET_MIN, LoadAssist.TARGET_MAX)) -- zo komt het ook aan
+    LoadAssistEvent.sendEvent(self, LoadAssistEvent.TARGET, index, m.target, noEventSend)
     LoadAssist.refresh(self)
 end
 
-function LoadAssist:resetLoadAssistLoaded(index)
-    self.spec_loadAssist.modeList[index].loaded = 0
+function LoadAssist:resetLoadAssistLoaded(index, noEventSend)
+    local m = self.spec_loadAssist.modeList[index]
+    if m == nil then
+        return
+    end
+    m.loaded = 0
+    LoadAssist.raiseTotalsDirty(self) -- de server stuurt daarna zijn tellers weer naar iedereen
+    LoadAssistEvent.sendEvent(self, LoadAssistEvent.RESET, index, nil, noEventSend)
     LoadAssist.refresh(self)
 end
 
-function LoadAssist:setLoadAssistModeEnabled(index, enabled)
-    self.spec_loadAssist.modeList[index].enabled = enabled
+function LoadAssist:setLoadAssistModeEnabled(index, enabled, noEventSend)
+    local m = self.spec_loadAssist.modeList[index]
+    if m == nil then
+        return
+    end
+    m.enabled = enabled == true
+    LoadAssistEvent.sendEvent(self, LoadAssistEvent.ENABLED, index, m.enabled, noEventSend)
     LoadAssist.refresh(self)
 end
 
-function LoadAssist:setLoadAssistSoundEnabled(enabled)
-    self.spec_loadAssist.soundEnabled = enabled
+function LoadAssist:setLoadAssistSoundEnabled(enabled, noEventSend)
+    local spec = self.spec_loadAssist
+    spec.soundEnabled = enabled == true
+    LoadAssistEvent.sendEvent(self, LoadAssistEvent.SOUND, 0, spec.soundEnabled, noEventSend)
 end
 
 function LoadAssist.refresh(self)

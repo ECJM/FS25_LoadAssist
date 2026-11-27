@@ -20,7 +20,7 @@ LoadAssist is a *specialization*: a piece of behaviour that a vehicle uses. On i
 - **Luminous screen**, just like in DigAssist: from the cab, LoadAssist draws the screen itself, in perspective exactly over the 3D screen. It lights up, also at night and in the shade. With three corner nodes from GIANTS Editor you put it exactly in place.
 - **Pixel bars**: the Truck and Job bars are made of separate pixels. While a bar grows, the pixels at its head light up; when the target is reached, a shine runs through the bar.
 - **HandelGothic font** (the same as in DigAssist) for the texts on the screen and in the menu.
-- **Saving**: target weights, counters and the sound setting are kept per vehicle in the savegame.
+- **Saving**: target weights, counters and the sound setting are kept per vehicle in the savegame. In multiplayer the server counts and everyone sees the same values, also players who join later; a dedicated server saves them correctly too.
 - **Stream Deck icons** for every function.
 - **Documentation** in Dutch and English: you switch the language at the top of the page.
 
@@ -151,6 +151,7 @@ All attributes, a full example and "Troubleshooting" are in [`docs/LoadAssist-do
 | [`scripts/LoadAssist.lua`](scripts/LoadAssist.lua) | The specialization: screen, weighing, counters, target weight, keys and sound |
 | [`scripts/LoadAssistScreen.lua`](scripts/LoadAssistScreen.lua) | The luminous screen from the cab: screen plane, perspective, pixel bars and texts |
 | [`scripts/LoadAssistMenu.lua`](scripts/LoadAssistMenu.lua) | The menu to set the target weights |
+| [`scripts/LoadAssistEvent.lua`](scripts/LoadAssistEvent.lua) | Multiplayer: what a player sets goes through the server to the others |
 | [`fonts`](fonts) | Fonts: HandelGothic for the 3D letters (`customFonts.xml`) and for the menu and the luminous screen (`handelgothic_overlay.dds`), and the older `DIGASSIST_FONT` |
 | [`sounds`](sounds) | The pling when a target is reached (`targetReached.wav`) |
 | [`textures`](textures) | The menu images (glass, shadow and icons) and `pixel.png` for the luminous screen |
@@ -176,6 +177,7 @@ New in 1.1:
 - The counters follow along while you unload
 - The 3D letters light up (`emissiveScale`), and a `fontThickness` that is too thin becomes 1 so the text is always visible
 - Target weights, counters and the sound setting are kept in the savegame
+- Multiplayer: the server counts the loads and everyone sees the same target weights and counters; players who join later get them too, and a dedicated server keeps them in the savegame
 - The rotation of the screen bucket (`minRot`, `zeroRot`, `maxRot`) and the sound can be set in the xml
 - When the engine stops, the progress bars switch off too
 - New mod icon and Stream Deck icons

@@ -20,7 +20,7 @@ LoadAssist is een *specialization*: een stukje gedrag dat een voertuig gebruikt.
 - **Lichtgevend scherm**, net als bij DigAssist: vanuit de cabine tekent LoadAssist het scherm zelf, in perspectief precies over het 3D-scherm heen. Het licht op, ook 's nachts en in de schaduw. Met drie hoek-nodes uit GIANTS Editor zet je het precies op zijn plek.
 - **Pixelbalken**: de balken van Vrachtwagen en Opdracht bestaan uit losse pixels. Zolang een balk groeit, lichten de pixels aan de kop op; is het doel gehaald, dan loopt er een glans door de balk.
 - **Lettertype HandelGothic** (hetzelfde als in DigAssist) voor de teksten op het scherm en in het menu.
-- **Opslaan**: doelgewichten, tellers en het geluid worden per voertuig in de savegame bewaard.
+- **Opslaan**: doelgewichten, tellers en het geluid worden per voertuig in de savegame bewaard. In multiplayer telt de server en ziet iedereen dezelfde waarden, ook wie later meedoet; een dedicated server bewaart ze ook goed.
 - **Stream Deck-iconen** voor alle functies.
 - **Documentatie** in het Nederlands en het Engels: bovenaan de pagina wissel je van taal.
 
@@ -149,6 +149,7 @@ Alle attributen, een volledig voorbeeld en "Problemen oplossen" staan in [`docs/
 | [`scripts/LoadAssist.lua`](scripts/LoadAssist.lua) | De specialization: scherm, meten, tellers, doelgewicht, toetsen en geluid |
 | [`scripts/LoadAssistScreen.lua`](scripts/LoadAssistScreen.lua) | Het lichtgevende scherm vanuit de cabine: schermvlak, perspectief, pixelbalken en teksten |
 | [`scripts/LoadAssistMenu.lua`](scripts/LoadAssistMenu.lua) | Het menu om de doelgewichten in te stellen |
+| [`scripts/LoadAssistEvent.lua`](scripts/LoadAssistEvent.lua) | Multiplayer: wat een speler instelt, gaat via de server naar de anderen |
 | [`fonts`](fonts) | Lettertypen: HandelGothic voor de 3D-letters (`customFonts.xml`) en voor het menu en het lichtgevende scherm (`handelgothic_overlay.dds`), en het oudere `DIGASSIST_FONT` |
 | [`sounds`](sounds) | De pling als een doel gehaald is (`targetReached.wav`) |
 | [`textures`](textures) | De afbeeldingen van het menu (glas, schaduw en iconen) en `pixel.png` voor het lichtgevende scherm |
@@ -174,6 +175,7 @@ Nieuw in 1.1:
 - De tellers lopen mee terwijl je lost
 - De 3D-letters lichten op (`emissiveScale`), en een te dunne `fontThickness` wordt 1 zodat de tekst altijd te zien is
 - Doelgewichten, tellers en het geluid worden in de savegame bewaard
+- Multiplayer: de server telt de ladingen en iedereen ziet dezelfde doelgewichten en tellers; wie later meedoet krijgt ze ook, en een dedicated server bewaart ze in de savegame
 - De draaiing van de schermbak (`minRot`, `zeroRot`, `maxRot`) en het geluid zijn in de xml in te stellen
 - Als de motor uit gaat, gaan ook de voortgangsbalken uit
 - Nieuw mod-icoon en Stream Deck-iconen
