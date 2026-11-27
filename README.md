@@ -70,10 +70,10 @@ De standaardtoetsen; <kbd>Ctrl</kbd> en <kbd>Shift</kbd> zijn de linkertoetsen. 
 Had je al een eerdere versie van LoadAssist en heeft het spel je toetsen opgeslagen, dan kunnen de oude toetsen blijven staan. Stel ze dan zelf in bij de besturing.
 
 <p align="center">
-  <img src="streamdeck-icons/_overzicht.png" width="520" alt="Stream Deck-iconen van LoadAssist">
+  <img src="streamdeck-icons/nl/_overzicht.png" width="520" alt="Stream Deck-iconen van LoadAssist">
 </p>
 
-De iconen staan als PNG van 144 × 144 pixels in [`streamdeck-icons`](streamdeck-icons). Zet in de Stream Deck-app eerst de actie *Hotkey* op een toets en stel de toets uit de tabel in. Sleep daarna het icoon op het icoonvakje van die actie.
+De iconen staan als PNG van 144 × 144 pixels in [`streamdeck-icons/nl`](streamdeck-icons/nl); de Engelse versie staat in [`streamdeck-icons/en`](streamdeck-icons/en). Zet in de Stream Deck-app eerst de actie *Hotkey* op een toets en stel de toets uit de tabel in. Sleep daarna het icoon op het icoonvakje van die actie.
 
 ### In het menu
 
@@ -153,7 +153,7 @@ Alle attributen, een volledig voorbeeld en "Problemen oplossen" staan in [`docs/
 | [`fonts`](fonts) | Lettertypen: HandelGothic voor de 3D-letters (`customFonts.xml`) en voor het menu en het lichtgevende scherm (`handelgothic_overlay.dds`), en het oudere `DIGASSIST_FONT` |
 | [`sounds`](sounds) | De pling als een doel gehaald is (`targetReached.wav`) |
 | [`textures`](textures) | De afbeeldingen van het menu (glas, schaduw en iconen) en `pixel.png` voor het lichtgevende scherm |
-| [`streamdeck-icons`](streamdeck-icons) | Iconen voor de Stream Deck en het logo |
+| [`streamdeck-icons`](streamdeck-icons) | Iconen voor de Stream Deck in het Nederlands (`nl`) en Engels (`en`), en het logo |
 | [`docs`](docs) | De documentatie |
 | `modDesc.xml`, `icon.dds` | Beschrijving van de mod en het icoon in het spel |
 

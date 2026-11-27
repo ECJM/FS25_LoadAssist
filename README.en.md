@@ -63,8 +63,8 @@ The default keys; <kbd>Ctrl</kbd> and <kbd>Shift</kbd> are the left-hand keys. Y
 | Function | Key | What it does |
 |---|---|---|
 | MENU | <kbd>Ctrl</kbd> + <kbd>R</kbd> | Opens or closes the menu with the target weights. |
-| WISSEL (switch) | <kbd>Ctrl</kbd> + <kbd>H</kbd> | Selects the other counter: Truck or Job. |
-| AAN/UIT (on/off) | <kbd>Shift</kbd> + <kbd>L</kbd> | Switches the selected counter on or off. |
+| SWITCH | <kbd>Ctrl</kbd> + <kbd>H</kbd> | Selects the other counter: Truck or Job. |
+| ON/OFF | <kbd>Shift</kbd> + <kbd>L</kbd> | Switches the selected counter on or off. |
 | +2.5 t | <kbd>Ctrl</kbd> + <kbd>L</kbd> | Raises the target of the selected counter by 2.5 t. |
 | -2.5 t | <kbd>Ctrl</kbd> + <kbd>U</kbd> | Lowers the target of the selected counter by 2.5 t. |
 | RESET | <kbd>Ctrl</kbd> + <kbd>O</kbd> | Sets the selected counter to 0.0 t. |
@@ -72,10 +72,10 @@ The default keys; <kbd>Ctrl</kbd> and <kbd>Shift</kbd> are the left-hand keys. Y
 If you already used an earlier version of LoadAssist and the game saved your keys, the old keys may stay. Then set them yourself in the controls settings.
 
 <p align="center">
-  <img src="streamdeck-icons/_overzicht.png" width="520" alt="LoadAssist Stream Deck icons">
+  <img src="streamdeck-icons/en/_overview.png" width="520" alt="LoadAssist Stream Deck icons">
 </p>
 
-The icons are 144 × 144 pixel PNG files in [`streamdeck-icons`](streamdeck-icons). In the Stream Deck app, first put the *Hotkey* action on a key and set the key from the table. Then drag the icon onto the icon box of that action.
+The icons are 144 × 144 pixel PNG files in [`streamdeck-icons/en`](streamdeck-icons/en); the Dutch version is in [`streamdeck-icons/nl`](streamdeck-icons/nl). In the Stream Deck app, first put the *Hotkey* action on a key and set the key from the table. Then drag the icon onto the icon box of that action.
 
 ### In the menu
 
@@ -155,7 +155,7 @@ All attributes, a full example and "Troubleshooting" are in [`docs/LoadAssist-do
 | [`fonts`](fonts) | Fonts: HandelGothic for the 3D letters (`customFonts.xml`) and for the menu and the luminous screen (`handelgothic_overlay.dds`), and the older `DIGASSIST_FONT` |
 | [`sounds`](sounds) | The pling when a target is reached (`targetReached.wav`) |
 | [`textures`](textures) | The menu images (glass, shadow and icons) and `pixel.png` for the luminous screen |
-| [`streamdeck-icons`](streamdeck-icons) | Icons for the Stream Deck and the logo |
+| [`streamdeck-icons`](streamdeck-icons) | Icons for the Stream Deck in English (`en`) and Dutch (`nl`), and the logo |
 | [`docs`](docs) | The documentation |
 | `modDesc.xml`, `icon.dds` | Description of the mod and the icon in the game |
 
